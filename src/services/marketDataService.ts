@@ -12,17 +12,18 @@ export interface MarketStatus {
   status: string;
   isOpen: boolean;
   holiday?: string;
+  nextTradingDay?: string;
+  session?: string;
 }
 
-// Finnhub API configuration
-const FINNHUB_API_URL = "https://finnhub.io/api/v1";
-const FINNHUB_API_KEY = "cvmr0r1r01ql90pvnmt0cvmr0r1r01ql90pvnmtg";
+// Polygon.io API configuration
+const POLYGON_API_URL = "https://api.polygon.io";
+const POLYGON_API_KEY = "skkpS4Wv9cV9ILmzfQEI9TSYCsI6bnc5";
 
-// Fetch market indices data from Finnhub
+// Fetch market indices data from Polygon.io
 export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
   try {
     // Define indices to fetch with their symbols
-    // Using symbols that work better with Finnhub's free tier
     const indices = [
       { symbol: "SPY", name: "S&P 500" },   // S&P 500 ETF
       { symbol: "DIA", name: "DOW" },       // Dow Jones ETF
@@ -51,24 +52,36 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
         
-        // Use Finnhub API with stock symbols instead of indices
-        // This works better with the free tier of Finnhub
-        const response = await fetch(
-          `${FINNHUB_API_URL}/quote?symbol=${index.symbol}&token=${FINNHUB_API_KEY}`
+        // Use Polygon.io API to get previous day close and current quote
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const dateString = yesterday.toISOString().split('T')[0];
+        
+        // Get previous day's close
+        const previousClose = await fetch(
+          `${POLYGON_API_URL}/v1/open-close/${index.symbol}/${dateString}?adjusted=true&apiKey=${POLYGON_API_KEY}`
         );
         
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
+        // Get current quote
+        const currentQuote = await fetch(
+          `${POLYGON_API_URL}/v2/last/trade/${index.symbol}?apiKey=${POLYGON_API_KEY}`
+        );
+        
+        if (!previousClose.ok || !currentQuote.ok) {
+          throw new Error(`API error: ${!previousClose.ok ? previousClose.status : currentQuote.status}`);
         }
         
-        const data = await response.json();
-        console.log(`Finnhub data for ${index.name}:`, data);
+        const previousData = await previousClose.json();
+        const quoteData = await currentQuote.json();
         
-        // Check if we have valid data from Finnhub
-        if (data && data.c && !data.error) {
-          const value = parseFloat(data.c); // Current price
-          const change = parseFloat(data.d); // Change
-          const changePercent = parseFloat(data.dp); // Percent change
+        console.log(`Polygon data for ${index.name}:`, { previousData, quoteData });
+        
+        // Check if we have valid data from Polygon
+        if (quoteData.results && previousData.close) {
+          const value = quoteData.results.p; // Current price
+          const prevClose = previousData.close;
+          const change = value - prevClose;
+          const changePercent = (change / prevClose) * 100;
           
           results.push({
             name: index.name,
@@ -102,7 +115,7 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
     
     return results;
   } catch (error) {
-    console.error('Error fetching market data from Finnhub:', error);
+    console.error('Error fetching market data from Polygon:', error);
     toast.info('Using simulated market data');
     
     // Generate complete simulated data as fallback
@@ -110,33 +123,66 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
   }
 };
 
-// Function to fetch historical data for a specific index 
-export const fetchHistoricalData = async (symbol: string, resolution = 'D', from = Math.floor(Date.now() / 1000 - 30 * 24 * 60 * 60), to = Math.floor(Date.now() / 1000)) => {
+// Function to fetch historical data for a specific index
+export const fetchHistoricalData = async (symbol: string, from = Math.floor(Date.now() / 1000 - 30 * 24 * 60 * 60), to = Math.floor(Date.now() / 1000)) => {
   try {
+    const fromDate = new Date(from * 1000).toISOString().split('T')[0];
+    const toDate = new Date(to * 1000).toISOString().split('T')[0];
+    
     const response = await fetch(
-      `${FINNHUB_API_URL}/stock/candle?symbol=${symbol}&resolution=${resolution}&from=${from}&to=${to}&token=${FINNHUB_API_KEY}`
+      `${POLYGON_API_URL}/v2/aggs/ticker/${symbol}/range/1/day/${fromDate}/${toDate}?adjusted=true&sort=asc&limit=120&apiKey=${POLYGON_API_KEY}`
     );
     
     if (!response.ok) {
       throw new Error(`API error: ${response.status}`);
     }
     
-    return await response.json();
+    const data = await response.json();
+    
+    // Transform Polygon data to match expected format
+    if (data.results && Array.isArray(data.results)) {
+      return {
+        c: data.results.map(bar => bar.c),
+        h: data.results.map(bar => bar.h),
+        l: data.results.map(bar => bar.l),
+        o: data.results.map(bar => bar.o),
+        t: data.results.map(bar => bar.t / 1000), // Convert milliseconds to seconds
+        v: data.results.map(bar => bar.v),
+        s: "ok"
+      };
+    }
+    
+    throw new Error("Invalid historical data format");
   } catch (error) {
     console.error(`Error fetching historical data for ${symbol}:`, error);
     throw error;
   }
 };
 
-// Function to search for symbols on Finnhub with exchange parameter
+// Function to search for symbols on Polygon.io
 export const searchIndices = async (query: string, exchange = "US") => {
   try {
     const response = await fetch(
-      `${FINNHUB_API_URL}/search?q=${query}&exchange=${exchange}&token=${FINNHUB_API_KEY}`
+      `${POLYGON_API_URL}/v3/reference/tickers?search=${query}&active=true&sort=ticker&order=asc&limit=10&apiKey=${POLYGON_API_KEY}`
     );
     
     if (!response.ok) {
       throw new Error(`API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Transform Polygon data to match expected format
+    if (data.results && Array.isArray(data.results)) {
+      return {
+        count: data.count,
+        result: data.results.map(item => ({
+          description: item.name,
+          displaySymbol: item.ticker,
+          symbol: item.ticker,
+          type: item.type
+        }))
+      };
     }
     
     return await response.json();
@@ -218,30 +264,53 @@ export const setupMarketDataPolling = (callback: (data: MarketIndex[]) => void, 
   return () => clearInterval(intervalId);
 };
 
-// Fetch market status from Finnhub
+// Fetch market status from Polygon.io
 export const fetchMarketStatus = async (exchange = "US"): Promise<MarketStatus> => {
   try {
-    const response = await fetch(
-      `${FINNHUB_API_URL}/stock/market-status?exchange=${exchange}&token=${FINNHUB_API_KEY}`
+    // Get current date in YYYY-MM-DD format
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Check if today is a market holiday
+    const holidayResponse = await fetch(
+      `${POLYGON_API_URL}/v1/marketstatus/upcoming?apiKey=${POLYGON_API_KEY}`
     );
     
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+    if (!holidayResponse.ok) {
+      throw new Error(`API error: ${holidayResponse.status}`);
     }
     
-    const data = await response.json();
-    console.log("Market status data:", data);
+    const holidayData = await holidayResponse.json();
+    console.log("Market holiday data:", holidayData);
     
-    if (data && data.hasOwnProperty('isOpen')) {
-      return {
-        exchange: exchange,
-        status: data.isOpen ? 'Open' : 'Closed',
-        isOpen: data.isOpen,
-        holiday: data.holiday || undefined
-      };
-    } else {
-      throw new Error("Invalid market status data");
+    // Check current market status
+    const marketStatusResponse = await fetch(
+      `${POLYGON_API_URL}/v1/marketstatus/now?apiKey=${POLYGON_API_KEY}`
+    );
+    
+    if (!marketStatusResponse.ok) {
+      throw new Error(`API error: ${marketStatusResponse.status}`);
     }
+    
+    const marketStatusData = await marketStatusResponse.json();
+    console.log("Market status data:", marketStatusData);
+    
+    // Find today's holiday if any
+    const todayHoliday = holidayData.find((holiday: any) => 
+      holiday.date === today && holiday.exchange === exchange
+    );
+    
+    // Get the market status for the exchange
+    const exchangeStatus = marketStatusData.exchanges[exchange] || "closed";
+    const isOpen = exchangeStatus === "open";
+    
+    return {
+      exchange: exchange,
+      status: isOpen ? 'Open' : 'Closed',
+      isOpen: isOpen,
+      holiday: todayHoliday?.name,
+      session: exchangeStatus,
+      nextTradingDay: todayHoliday?.open
+    };
   } catch (error) {
     console.error('Error fetching market status:', error);
     toast.error('Could not fetch market status');

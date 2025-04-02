@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { fetchMarketStatus, MarketStatus } from '@/services/marketDataService';
 import { Circle, Clock } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -42,9 +42,19 @@ const MarketStatusBox = () => {
         <span className="text-xs text-muted-foreground">
           {marketStatus.exchange} Exchange
         </span>
+        {marketStatus.session && marketStatus.session !== "open" && marketStatus.session !== "closed" && (
+          <span className="text-xs text-muted-foreground">
+            Session: {marketStatus.session}
+          </span>
+        )}
         {marketStatus.holiday && (
           <span className="text-xs text-muted-foreground">
             Holiday: {marketStatus.holiday}
+          </span>
+        )}
+        {marketStatus.nextTradingDay && (
+          <span className="text-xs text-muted-foreground">
+            Next trading: {new Date(marketStatus.nextTradingDay).toLocaleDateString()}
           </span>
         )}
       </div>
