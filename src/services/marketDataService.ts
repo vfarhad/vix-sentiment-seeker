@@ -13,19 +13,21 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
   try {
     // Alpha Vantage API configuration
     const API_KEY = "OBOZK3AWYR7261VM"; // Using the provided API key
+    
+    // Using TIME_SERIES_DAILY endpoint instead of GLOBAL_QUOTE for better reliability
     const indices = [
-      { symbol: "DJI", name: "DOW" },
-      { symbol: "SPX", name: "S&P 500" },
-      { symbol: "IXIC", name: "NASDAQ" },
-      { symbol: "RUT", name: "RUSSELL" },
-      { symbol: "VIX", name: "VIX" }
+      { symbol: "^DJI", name: "DOW" },       // Added ^ prefix for indices
+      { symbol: "^GSPC", name: "S&P 500" },  // Changed from SPX to ^GSPC
+      { symbol: "^IXIC", name: "NASDAQ" },   // Added ^ prefix
+      { symbol: "^RUT", name: "RUSSELL" },   // Added ^ prefix
+      { symbol: "^VIX", name: "VIX" }        // Added ^ prefix
     ];
 
     // Fetch data for each index
     const promises = indices.map(async (index) => {
       try {
         const response = await fetch(
-          `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${index.symbol}&apikey=${API_KEY}`
+          `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${index.symbol}&apikey=${API_KEY}`
         );
         
         if (!response.ok) {
@@ -34,23 +36,36 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
         
         const data = await response.json();
         
-        // Check if we have valid data
-        if (data["Global Quote"] && Object.keys(data["Global Quote"]).length > 0) {
-          const quote = data["Global Quote"];
-          const value = parseFloat(quote["05. price"]).toLocaleString();
-          const change = quote["09. change"];
-          const changePercent = quote["10. change percent"];
+        // Check if we have valid data with the TIME_SERIES_DAILY format
+        if (data["Time Series (Daily)"]) {
+          const timeSeriesData = data["Time Series (Daily)"];
+          const dates = Object.keys(timeSeriesData).sort().reverse(); // Sort dates in descending order
           
-          return {
-            name: index.name,
-            value: value,
-            change: change,
-            changePercent: changePercent
-          };
-        } else {
-          console.warn(`No data returned for ${index.name}, using fallback`);
-          throw new Error("Invalid data structure");
+          if (dates.length > 0) {
+            const latestDate = dates[0];
+            const previousDate = dates.length > 1 ? dates[1] : null;
+            
+            const latestData = timeSeriesData[latestDate];
+            const previousData = previousDate ? timeSeriesData[previousDate] : null;
+            
+            const latestClose = parseFloat(latestData["4. close"]);
+            const previousClose = previousData ? parseFloat(previousData["4. close"]) : latestClose;
+            
+            const change = latestClose - previousClose;
+            const changePercent = (change / previousClose) * 100;
+            
+            return {
+              name: index.name,
+              value: latestClose.toLocaleString(),
+              change: change.toFixed(2),
+              changePercent: `${changePercent.toFixed(2)}%`
+            };
+          }
         }
+        
+        // If we reach here, we didn't get valid data
+        console.warn(`No valid data returned for ${index.name}, using fallback`);
+        throw new Error("No valid data structure");
       } catch (err) {
         console.warn(`Error fetching ${index.name}, using fallback data`, err);
         // Return fallback data for this specific index
@@ -68,6 +83,11 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
     // If we got no valid results, throw an error to trigger the fallback
     if (marketIndices.length === 0) {
       throw new Error("No valid market data received");
+    }
+    
+    // Display toast only if using some fallback data but not all
+    if (marketIndices.length < indices.length) {
+      toast.warning('Some market data is simulated');
     }
     
     return marketIndices;
