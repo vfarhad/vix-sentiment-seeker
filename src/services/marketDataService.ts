@@ -11,21 +11,22 @@ export interface MarketIndex {
 // Finnhub API configuration
 const FINNHUB_API_KEY = "cvmr0r1r01ql90pvnmt0cvmr0r1r01ql90pvnmtg";
 const FINNHUB_SECRET = "cvmr0r1r01ql90pvnmug";
+const FINNHUB_API_URL = "https://finnhub.io/api/v1";
 
 // Fetch market indices data
 export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
   try {
-    // Define indices to fetch (Finnhub uses different symbols)
+    // Define indices to fetch (using proper Finnhub symbol format)
     const indices = [
-      { symbol: "^DJI", finnhubSymbol: "DJIA", name: "DOW" },
-      { symbol: "^GSPC", finnhubSymbol: "SPX", name: "S&P 500" },
-      { symbol: "^IXIC", finnhubSymbol: "NDX", name: "NASDAQ" },
-      { symbol: "^RUT", finnhubSymbol: "RUT", name: "RUSSELL" },
-      { symbol: "^VIX", finnhubSymbol: "VIX", name: "VIX" }
+      { symbol: "^DJI", finnhubSymbol: "^DJI", name: "DOW" },
+      { symbol: "^GSPC", finnhubSymbol: "^GSPC", name: "S&P 500" },
+      { symbol: "^IXIC", finnhubSymbol: "^IXIC", name: "NASDAQ" },
+      { symbol: "^RUT", finnhubSymbol: "^RUT", name: "RUSSELL" },
+      { symbol: "^VIX", finnhubSymbol: "^VIX", name: "VIX" }
     ];
 
     // For debugging/development, set to true if API is not working
-    const useAllFallbackData = true; // Switching to true since the API is not returning valid data for most symbols
+    const useAllFallbackData = true; // Keeping this as true until we confirm API works
     
     if (useAllFallbackData) {
       console.log("Using fallback data for all indices due to API limitations");
@@ -44,9 +45,9 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
         
-        // Standard API call for quotes
+        // Using Finnhub's stock quote endpoint
         const response = await fetch(
-          `https://finnhub.io/api/v1/quote?symbol=${index.finnhubSymbol}&token=${FINNHUB_API_KEY}`,
+          `${FINNHUB_API_URL}/quote?symbol=${index.finnhubSymbol}&token=${FINNHUB_API_KEY}`,
           {
             headers: {
               'X-Finnhub-Secret': FINNHUB_SECRET
@@ -59,6 +60,7 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
         }
         
         const data = await response.json();
+        console.log(`Finnhub data for ${index.name}:`, data);
         
         // Check if we have valid data with the Finnhub format
         if (data && data.c && data.d !== null && data.dp !== null) {
@@ -100,6 +102,52 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
     
     // Generate complete simulated data as fallback
     return generateAllFallbackData();
+  }
+};
+
+// Function to fetch detailed historical data for a specific symbol (e.g., VIX)
+export const fetchHistoricalData = async (symbol: string, resolution = 'D', from: number, to: number) => {
+  try {
+    const response = await fetch(
+      `${FINNHUB_API_URL}/stock/candle?symbol=${symbol}&resolution=${resolution}&from=${from}&to=${to}&token=${FINNHUB_API_KEY}`,
+      {
+        headers: {
+          'X-Finnhub-Secret': FINNHUB_SECRET
+        }
+      }
+    );
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error(`Error fetching historical data for ${symbol}:`, error);
+    throw error;
+  }
+};
+
+// Function to search for symbols
+export const searchSymbols = async (query: string) => {
+  try {
+    const response = await fetch(
+      `${FINNHUB_API_URL}/search?q=${query}&token=${FINNHUB_API_KEY}`,
+      {
+        headers: {
+          'X-Finnhub-Secret': FINNHUB_SECRET
+        }
+      }
+    );
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error(`Error searching for ${query}:`, error);
+    throw error;
   }
 };
 
