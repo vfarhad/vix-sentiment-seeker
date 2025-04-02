@@ -35,6 +35,7 @@ export interface SearchResult {
   }[];
 }
 
+// Finnhub data structures (kept for reference)
 export interface FinnhubQuote {
   c: number;  // Current price
   d: number;  // Change
@@ -65,5 +66,49 @@ export interface FinnhubSymbolLookup {
     displaySymbol: string;
     symbol: string;
     type: string;
+  }[];
+}
+
+// Financial Modeling Prep data structures
+export interface FMPQuote {
+  symbol: string;           // Symbol of the company
+  name: string;             // Name of the company
+  price: number;            // Current price
+  changesPercentage: number; // Percentage change
+  change: number;           // Price change
+  dayLow: number;           // Day low
+  dayHigh: number;          // Day high
+  yearHigh: number;         // Year high
+  yearLow: number;          // Year low
+  marketCap: number;        // Market capitalization
+  priceAvg50: number;       // Average price for 50 days
+  priceAvg200: number;      // Average price for 200 days
+  volume: number;           // Volume
+  avgVolume: number;        // Average volume
+  open: number;             // Open price
+  previousClose: number;    // Previous close price
+  eps: number;              // Earnings per share
+  pe: number;               // Price-to-earnings ratio
+  earningsAnnouncement: string; // Earnings announcement date
+  sharesOutstanding: number; // Shares outstanding
+  timestamp: number;        // Timestamp
+}
+
+export interface FMPHistoricalData {
+  symbol: string;
+  historical: {
+    date: string;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    adjClose: number;
+    volume: number;
+    unadjustedVolume: number;
+    change: number;
+    changePercent: number;
+    vwap: number;
+    label: string;
+    changeOverTime: number;
   }[];
 }

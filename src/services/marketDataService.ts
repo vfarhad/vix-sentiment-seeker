@@ -1,14 +1,9 @@
 
 import { toast } from "sonner";
-import { MarketIndex, MarketStatus, HistoricalData, SearchResult } from '@/types/marketData';
+import { MarketIndex, MarketStatus, HistoricalData, SearchResult, FMPHistoricalData } from '@/types/marketData';
 import { generateFallbackData, generateAllFallbackData } from './fallbackDataService';
-import { 
-  fetchFinnhubQuote, 
-  fetchFinnhubHistoricalData, 
-  searchFinnhubSymbols, 
-  fetchFinnhubMarketStatus 
-} from './finnhubAPIService';
-import { transformFinnhubData } from './dataTransformService';
+import { fetchFMPQuote, fetchFMPHistoricalData, fetchFMPMarketStatus } from './fmpAPIService';
+import { transformFMPData } from './dataTransformService';
 
 // Export MarketIndex type for use in components
 export type { MarketIndex } from '@/types/marketData';
@@ -22,7 +17,7 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
       { symbol: "DIA", name: "DOW" },       // Dow Jones ETF
       { symbol: "QQQ", name: "NASDAQ" },    // NASDAQ ETF  
       { symbol: "IWM", name: "RUSSELL" },   // Russell 2000 ETF
-      { symbol: "UVXY", name: "VIX" }       // VIX ETF
+      { symbol: "^VIX", name: "VIX" }       // VIX index (FMP uses ^ for indices)
     ];
 
     // For debugging/development, set to true if API is not working
@@ -45,11 +40,11 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
         
-        // Fetch data from Finnhub API
-        const quoteData = await fetchFinnhubQuote(index.symbol);
+        // Fetch data from FMP API
+        const quoteData = await fetchFMPQuote(index.symbol);
         
         // Transform data to MarketIndex format
-        const transformedData = transformFinnhubData(index.name, quoteData);
+        const transformedData = transformFMPData(index.name, quoteData);
         
         if (transformedData) {
           results.push(transformedData);
@@ -79,7 +74,7 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
     
     return results;
   } catch (error) {
-    console.error('Error fetching market data from Finnhub:', error);
+    console.error('Error fetching market data from FMP:', error);
     toast.info('Using simulated market data');
     
     // Generate complete simulated data as fallback
@@ -93,23 +88,51 @@ export const fetchHistoricalData = async (
   from = Math.floor(Date.now() / 1000 - 30 * 24 * 60 * 60), 
   to = Math.floor(Date.now() / 1000)
 ): Promise<HistoricalData> => {
-  return await fetchFinnhubHistoricalData(symbol, from, to);
+  try {
+    // Convert Unix timestamps to YYYY-MM-DD format for FMP API
+    const fromDate = new Date(from * 1000).toISOString().split('T')[0];
+    const toDate = new Date(to * 1000).toISOString().split('T')[0];
+    
+    const fmpData = await fetchFMPHistoricalData(symbol, fromDate, toDate);
+    
+    // Transform FMP data to match the expected format
+    return transformFMPHistoricalData(fmpData);
+  } catch (error) {
+    console.error('Error fetching historical data:', error);
+    throw error;
+  }
+};
+
+// Helper function to transform FMP historical data to our HistoricalData format
+const transformFMPHistoricalData = (fmpData: FMPHistoricalData): HistoricalData => {
+  // FMP returns historical data in reverse chronological order (newest first)
+  // We need to reverse it to match our expected format
+  const historical = [...fmpData.historical].reverse();
+  
+  return {
+    c: historical.map(item => item.close),
+    h: historical.map(item => item.high),
+    l: historical.map(item => item.low),
+    o: historical.map(item => item.open),
+    t: historical.map(item => new Date(item.date).getTime() / 1000), // Convert to Unix timestamp
+    v: historical.map(item => item.volume),
+    s: "ok"
+  };
 };
 
 // Function to search for symbols
-export const searchIndices = async (query: string, exchange = "US"): Promise<SearchResult> => {
-  const result = await searchFinnhubSymbols(query);
-  
-  // Transform to expected SearchResult format
+export const searchIndices = async (query: string): Promise<SearchResult> => {
+  // For now, we'll return a mock search result
+  // In a future update, we can implement a real search with FMP
   return {
-    count: result.count,
-    result: result.result
+    count: 0,
+    result: []
   };
 };
 
 // Fetch market status
 export const fetchMarketStatus = async (exchange = "US"): Promise<MarketStatus> => {
-  return await fetchFinnhubMarketStatus(exchange);
+  return await fetchFMPMarketStatus();
 };
 
 // Function to refresh data at regular intervals
