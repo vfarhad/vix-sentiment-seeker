@@ -7,21 +7,43 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer,
+  ResponsiveContainer, 
   ReferenceLine,
-  ComposedChart,
-  Line,
-  Legend
+  Legend 
 } from 'recharts';
-import { ArrowDown, ArrowUp } from 'lucide-react';
 
-interface VIXFuturesChartProps {
-  data: Array<{ month: string; value: number }>;
-  className?: string;
+interface VIXFuturesData {
+  month: string;
+  value: number;
 }
 
-const VIXFuturesChart = ({ data, className }: VIXFuturesChartProps) => {
-  // Format for tooltip
+interface VIXFuturesChartProps {
+  data: VIXFuturesData[];
+}
+
+const VIXFuturesChart: React.FC<VIXFuturesChartProps> = ({ data }) => {
+  // Calculate the average of all futures values
+  const averageFuture = data.reduce((sum, item) => sum + item.value, 0) / data.length;
+  
+  // Process data to include month-to-month differences and contango
+  const processedData = data.map((item, index) => {
+    // Calculate month-to-month difference
+    const difference = index > 0 ? item.value - data[index - 1].value : 0;
+    
+    // Calculate contango (whether future value is higher than current)
+    const contango = index > 0 && item.value > data[0].value;
+    
+    return {
+      ...item,
+      difference,
+      contango
+    };
+  });
+
+  // Skip the current month for difference chart (it has no previous month to compare)
+  const differenceData = processedData.slice(1);
+  
+  // Custom tooltip for the futures chart
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
@@ -31,183 +53,114 @@ const VIXFuturesChart = ({ data, className }: VIXFuturesChartProps) => {
             <span className="font-medium">VIX: </span> 
             {payload[0].value.toFixed(2)}
           </p>
+          {payload[0].payload.difference !== undefined && (
+            <p className={`text-sm ${payload[0].payload.difference >= 0 ? 'text-negative' : 'text-positive'}`}>
+              <span className="font-medium">Change: </span>
+              {payload[0].payload.difference > 0 ? '+' : ''}
+              {payload[0].payload.difference.toFixed(2)}
+            </p>
+          )}
+          {payload[0].payload.contango !== undefined && payload[0].payload.month !== 'Current' && (
+            <p className={`text-sm ${payload[0].payload.contango ? 'text-negative' : 'text-positive'}`}>
+              <span className="font-medium">
+                {payload[0].payload.contango ? 'Contango' : 'Backwardation'}
+              </span>
+            </p>
+          )}
         </div>
       );
     }
     return null;
   };
-  
-  // Calculate average for reference line
-  const averageVIX = data.reduce((acc, item) => acc + item.value, 0) / data.length;
-  
-  // Find min and max values to set chart domain
-  const minValue = Math.floor(Math.min(...data.map(item => item.value)) * 0.9);
-  const maxValue = Math.ceil(Math.max(...data.map(item => item.value)) * 1.1);
 
-  // Calculate contango data (difference between adjacent months)
-  const contangoData = data.map((item, index) => {
-    if (index === 0) {
-      return {
-        month: item.month,
-        value: item.value,
-        contango: 0,
-        difference: 0
-      };
-    }
-    
-    const previousValue = data[index - 1].value;
-    const contango = ((item.value / previousValue) - 1) * 100; // percentage change
-    const difference = item.value - previousValue;
-    
-    return {
-      month: item.month,
-      value: item.value,
-      contango: parseFloat(contango.toFixed(2)),
-      difference: parseFloat(difference.toFixed(2))
-    };
-  });
-
-  // Contango tooltip
-  const ContangoTooltip = ({ active, payload, label }: any) => {
+  // Custom tooltip for the difference chart
+  const DifferenceTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-card p-3 border border-border rounded shadow-md">
           <p className="text-sm font-medium">{label}</p>
-          {payload.map((entry: any, index: number) => {
-            if (entry.dataKey === "contango") {
-              return (
-                <p key={index} className="text-sm text-green-500">
-                  <span className="font-medium">Contango: </span> 
-                  {entry.value > 0 ? "+" : ""}{entry.value}%
-                </p>
-              );
-            } else if (entry.dataKey === "difference") {
-              const color = entry.value >= 0 ? "text-green-500" : "text-red-500";
-              return (
-                <p key={index} className={`text-sm ${color}`}>
-                  <span className="font-medium">Difference: </span> 
-                  {entry.value > 0 ? "+" : ""}{entry.value}
-                </p>
-              );
-            }
-            return null;
-          })}
+          <p className={`text-sm ${payload[0].value >= 0 ? 'text-negative' : 'text-positive'}`}>
+            <span className="font-medium">Diff: </span>
+            {payload[0].value > 0 ? '+' : ''}
+            {payload[0].value.toFixed(2)}
+          </p>
+          <p className={`text-sm ${payload[0].payload.contango ? 'text-negative' : 'text-positive'}`}>
+            <span className="font-medium">
+              {payload[0].payload.contango ? 'Contango' : 'Backwardation'}
+            </span>
+          </p>
         </div>
       );
     }
     return null;
   };
 
+  // Get color based on the difference value
+  const getDifferenceColor = (difference: number) => {
+    return difference >= 0 ? "#EF4444" : "#10B981";
+  };
+  
   return (
-    <div className={`chart-container ${className}`}>
-      <h2 className="text-lg font-semibold mb-4">VIX Futures Curve</h2>
-      <div className="h-[300px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={data}
-            margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
-            <XAxis 
-              dataKey="month" 
-              stroke="#64748B" 
-              tick={{ fontSize: 12 }}
-            />
-            <YAxis 
-              domain={[minValue, maxValue]} 
-              stroke="#64748B"
-              tick={{ fontSize: 12 }}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <ReferenceLine 
-              y={averageVIX} 
-              stroke="#94A3B8" 
-              strokeDasharray="3 3" 
-              label={{ 
-                value: `Avg: ${averageVIX.toFixed(2)}`, 
-                position: 'right',
-                fill: '#94A3B8',
-                fontSize: 12
-              }} 
-            />
-            <Bar 
-              dataKey="value" 
-              fill="#3B82F6" 
-              radius={[4, 4, 0, 0]}
-              animationDuration={1500}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="flex justify-between text-xs text-muted-foreground mt-2">
-        <span>Current Month</span>
-        <span>6 Months Forward</span>
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-semibold mb-4">VIX Futures Curve</h2>
+        <div className="h-[250px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={processedData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
+              <XAxis dataKey="month" stroke="#64748B" />
+              <YAxis stroke="#64748B" />
+              <Tooltip content={<CustomTooltip />} />
+              <ReferenceLine 
+                y={averageFuture} 
+                stroke="#94A3B8" 
+                strokeDasharray="3 3" 
+                label={{ 
+                  value: `Avg: ${averageFuture.toFixed(2)}`, 
+                  position: 'right',
+                  fill: '#94A3B8',
+                  fontSize: 12
+                }}
+              />
+              <Bar 
+                dataKey="value" 
+                fill="#3B82F6"
+                radius={[4, 4, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
       
-      {/* Contango and Difference Chart */}
-      <h3 className="text-md font-medium mt-6 mb-2">Month-to-Month Changes</h3>
-      <div className="h-[200px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart
-            data={contangoData.slice(1)} // Skip the first month as it has no previous month to compare
-            margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
-            <XAxis 
-              dataKey="month" 
-              stroke="#64748B" 
-              tick={{ fontSize: 12 }}
-            />
-            <YAxis 
-              yAxisId="left"
-              orientation="left"
-              stroke="#10B981" // Green color for contango
-              tick={{ fontSize: 12 }}
-              label={{ value: '%', position: 'insideLeft', angle: -90, dy: 10, fill: '#10B981', fontSize: 12 }}
-            />
-            <YAxis 
-              yAxisId="right"
-              orientation="right"
-              stroke="#EF4444" // Red color for difference
-              tick={{ fontSize: 12 }}
-              label={{ value: 'Points', position: 'insideRight', angle: -90, dy: -20, fill: '#EF4444', fontSize: 12 }}
-            />
-            <Tooltip content={<ContangoTooltip />} />
-            <Legend />
-            <Bar 
-              yAxisId="right"
-              dataKey="difference" 
-              fill={({ difference }) => difference >= 0 ? "#10B981" : "#EF4444"}
-              name="Difference (Points)"
-              radius={[4, 4, 0, 0]}
-              animationDuration={1500}
-            />
-            <Line
-              yAxisId="left"
-              type="monotone"
-              dataKey="contango"
-              stroke="#10B981"
-              strokeWidth={2}
-              name="Contango (%)"
-              dot={{ r: 4, strokeWidth: 2, fill: '#0F172A' }}
-            />
-            <ReferenceLine 
-              yAxisId="left"
-              y={0} 
-              stroke="#94A3B8" 
-              strokeDasharray="3 3"
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="flex justify-between items-center text-xs text-muted-foreground mt-2">
-        <div className="flex items-center">
-          <ArrowUp className="h-3 w-3 text-green-500 mr-1" />
-          <span>Contango: Higher future prices (uncertainty increasing)</span>
+      <div>
+        <h2 className="text-lg font-semibold mb-4">Month-to-Month Changes</h2>
+        <div className="h-[200px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={differenceData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
+              <XAxis dataKey="month" stroke="#64748B" />
+              <YAxis stroke="#64748B" />
+              <Tooltip content={<DifferenceTooltip />} />
+              <ReferenceLine y={0} stroke="#94A3B8" />
+              <Bar 
+                dataKey="difference" 
+                radius={[4, 4, 0, 0]}
+                fill={(data) => {
+                  return getDifferenceColor(data.difference);
+                }}
+              />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
-        <div className="flex items-center">
-          <ArrowDown className="h-3 w-3 text-red-500 mr-1" />
-          <span>Backwardation: Lower future prices</span>
+        <div className="flex justify-center space-x-6 text-xs text-muted-foreground mt-2">
+          <div className="flex items-center">
+            <div className="w-3 h-3 rounded-full mr-1 bg-positive"></div>
+            <span>Backwardation (VIX decreasing)</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-3 h-3 rounded-full mr-1 bg-negative"></div>
+            <span>Contango (VIX increasing)</span>
+          </div>
         </div>
       </div>
     </div>
