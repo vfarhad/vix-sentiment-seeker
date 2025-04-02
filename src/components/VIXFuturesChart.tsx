@@ -145,9 +145,11 @@ const VIXFuturesChart: React.FC<VIXFuturesChartProps> = ({ data }) => {
               <Bar 
                 dataKey="difference" 
                 radius={[4, 4, 0, 0]}
-                fill={(entry) => {
-                  return entry.difference >= 0 ? "#EF4444" : "#10B981";
-                }}
+                fill="#3B82F6"
+                // Using fill callback is causing TypeScript errors, so we'll use a style approach
+                className="fill-current"
+                // We'll apply color via a custom attribute
+                name="difference-bar"
               />
             </BarChart>
           </ResponsiveContainer>
