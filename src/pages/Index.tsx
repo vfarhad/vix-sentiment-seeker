@@ -29,7 +29,7 @@ const Index = () => {
                   label={stat.label}
                   value={stat.value}
                   change={stat.change}
-                  sentiment={stat.sentiment}
+                  sentiment={stat.sentiment as 'bullish' | 'bearish' | 'neutral' | undefined}
                   isAverage={stat.isAverage}
                   date={stat.date}
                 />
@@ -46,7 +46,7 @@ const Index = () => {
             
             {/* Market headlines */}
             <div className="bg-card rounded-lg border border-border p-4">
-              <h2 className="text-lg font-semibold mb-3">Market Headlines</h2>
+              <h2 className="text-lg font-semibold mb-4">Market Headlines</h2>
               <div className="space-y-4">
                 {marketHeadlines.map((headline, index) => (
                   <div key={index} className="border-b border-border pb-3 last:border-none last:pb-0">
