@@ -1,3 +1,4 @@
+
 import { toast } from "sonner";
 
 export interface MarketIndex {
@@ -18,7 +19,7 @@ export interface MarketStatus {
 
 // Polygon.io API configuration
 const POLYGON_API_URL = "https://api.polygon.io";
-const POLYGON_API_KEY = "skkpS4Wv9cV9ILmzfQEI9TSYCsI6bnc5";
+const POLYGON_API_KEY = "nv0wDEF63xw8YgnBiYxxQWCAec3MwVIq";
 
 // Fetch market indices data from Polygon.io
 export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
