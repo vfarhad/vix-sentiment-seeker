@@ -1,3 +1,4 @@
+
 import { toast } from "sonner";
 import { MarketIndex, MarketStatus, HistoricalData, SearchResult, FMPHistoricalData } from '@/types/marketData';
 import { generateFallbackData, generateAllFallbackData } from './fallbackDataService';
@@ -17,7 +18,7 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
       { symbol: "^IXIC", name: "NASDAQ" },   // NASDAQ Composite Index
       { symbol: "^RUT", name: "RUSSELL" },   // Russell 2000 Index
       { symbol: "^VIX", name: "VIX" },       // VIX Index
-      { symbol: "AAPL", name: "APPLE" }      // Apple Inc. stock
+      { symbol: "AAPL", name: "AAPL" }      // Apple Inc. stock
     ];
 
     // For debugging/development, set to true if API is not working

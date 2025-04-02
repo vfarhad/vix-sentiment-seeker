@@ -9,6 +9,7 @@ export const generateFallbackData = (indexName: string): MarketIndex => {
     indexName === "S&P 500" ? 4800 + Math.random() * 400 :
     indexName === "NASDAQ" ? 15000 + Math.random() * 1500 :
     indexName === "RUSSELL" ? 1900 + Math.random() * 200 :
+    indexName === "AAPL" ? 160 + Math.random() * 40 :
     15 + Math.random() * 15; // VIX
   
   const isPositive = isVIX ? Math.random() < 0.4 : Math.random() > 0.4; // VIX typically moves opposite to markets
@@ -25,7 +26,7 @@ export const generateFallbackData = (indexName: string): MarketIndex => {
 
 // Generate all fallback data with correlated market movements
 export const generateAllFallbackData = (): MarketIndex[] => {
-  const indices = ["DOW", "S&P 500", "NASDAQ", "RUSSELL", "VIX"];
+  const indices = ["DOW", "S&P 500", "NASDAQ", "RUSSELL", "VIX", "AAPL"];
   const marketTrend = Math.random() > 0.5; // True = up market, False = down market
   
   return indices.map(name => {
@@ -38,6 +39,7 @@ export const generateAllFallbackData = (): MarketIndex[] => {
       name === "S&P 500" ? 4800 + Math.random() * 400 :
       name === "NASDAQ" ? 15000 + Math.random() * 1500 :
       name === "RUSSELL" ? 1900 + Math.random() * 200 :
+      name === "AAPL" ? 160 + Math.random() * 40 :
       15 + Math.random() * 15; // VIX
     
     const changeValue = parseFloat((Math.random() * (isVIX ? 3 : 80)).toFixed(2));
