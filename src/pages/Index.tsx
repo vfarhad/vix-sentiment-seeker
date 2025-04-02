@@ -6,6 +6,7 @@ import VIXChart from '@/components/VIXChart';
 import VIXFuturesChart from '@/components/VIXFuturesChart';
 import SentimentIndicator from '@/components/SentimentIndicator';
 import StatisticCard from '@/components/StatisticCard';
+import MarketStatusBox from '@/components/MarketStatusBox';
 import { vixHistoricalData, marketSentiment, vixStatistics, marketHeadlines, vixFuturesData } from '@/lib/mockData';
 import { fetchMarketIndices, setupMarketDataPolling, MarketIndex } from '@/services/marketDataService';
 import { useQuery } from '@tanstack/react-query';
@@ -105,6 +106,8 @@ const Index = () => {
           </div>
         </div>
       </main>
+      
+      <MarketStatusBox />
       
       <footer className="bg-card py-3 px-6 border-t border-border text-center text-sm text-muted-foreground">
         <p>VIX Sentiment Seeker - Real-time market data updated every minute</p>

@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 
 export interface MarketIndex {
@@ -6,6 +5,13 @@ export interface MarketIndex {
   value: string;
   change: string;
   changePercent: string;
+}
+
+export interface MarketStatus {
+  exchange: string;
+  status: string;
+  isOpen: boolean;
+  holiday?: string;
 }
 
 // Finnhub API configuration
@@ -210,4 +216,41 @@ export const setupMarketDataPolling = (callback: (data: MarketIndex[]) => void, 
   
   // Return cleanup function
   return () => clearInterval(intervalId);
+};
+
+// Fetch market status from Finnhub
+export const fetchMarketStatus = async (exchange = "US"): Promise<MarketStatus> => {
+  try {
+    const response = await fetch(
+      `${FINNHUB_API_URL}/stock/market-status?exchange=${exchange}&token=${FINNHUB_API_KEY}`
+    );
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log("Market status data:", data);
+    
+    if (data && data.hasOwnProperty('isOpen')) {
+      return {
+        exchange: exchange,
+        status: data.isOpen ? 'Open' : 'Closed',
+        isOpen: data.isOpen,
+        holiday: data.holiday || undefined
+      };
+    } else {
+      throw new Error("Invalid market status data");
+    }
+  } catch (error) {
+    console.error('Error fetching market status:', error);
+    toast.error('Could not fetch market status');
+    
+    // Return fallback data
+    return {
+      exchange: exchange,
+      status: new Date().getHours() >= 9 && new Date().getHours() < 16 ? 'Open' : 'Closed',
+      isOpen: new Date().getHours() >= 9 && new Date().getHours() < 16,
+    };
+  }
 };
