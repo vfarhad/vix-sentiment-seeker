@@ -27,6 +27,13 @@ const VIXFuturesChart: React.FC<VIXFuturesChartProps> = ({ data }) => {
   // Calculate the average of all futures values
   const averageFuture = data.reduce((sum, item) => sum + item.value, 0) / data.length;
   
+  // Find the minimum and maximum values for Y-axis scaling
+  const minValue = Math.min(...data.map(item => item.value));
+  const maxValue = Math.max(...data.map(item => item.value));
+  
+  // Define Y-axis domain from (min - 1) to (max + 1)
+  const yAxisDomain = [Math.floor(minValue - 1), Math.ceil(maxValue + 1)];
+  
   // Process data to include month-to-month differences and contango
   const processedData = data.map((item, index) => {
     // Calculate month-to-month difference
@@ -111,7 +118,10 @@ const VIXFuturesChart: React.FC<VIXFuturesChartProps> = ({ data }) => {
             <LineChart data={processedData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
               <XAxis dataKey="month" stroke="#64748B" />
-              <YAxis stroke="#64748B" />
+              <YAxis 
+                stroke="#64748B" 
+                domain={yAxisDomain}
+              />
               <Tooltip content={<CustomTooltip />} />
               <ReferenceLine 
                 y={averageFuture} 
