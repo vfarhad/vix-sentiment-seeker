@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { fetchMarketStatus, MarketStatus } from '@/services/marketDataService';
+import { fetchMarketStatus } from '@/services/marketDataService';
 import { Circle, Clock } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
