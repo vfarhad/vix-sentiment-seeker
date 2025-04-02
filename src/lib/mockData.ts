@@ -1,4 +1,3 @@
-
 // Mock data for VIX chart
 export const vixHistoricalData = [
   { date: '2023-01-01', value: 22.05 },
@@ -77,4 +76,15 @@ export const marketHeadlines = [
     sentiment: 'bullish',
     timestamp: '8h ago',
   },
+];
+
+// VIX Futures data (new)
+export const vixFuturesData = [
+  { month: 'Current', value: 24.85 },
+  { month: 'Month 1', value: 25.63 },
+  { month: 'Month 2', value: 26.12 },
+  { month: 'Month 3', value: 25.87 },
+  { month: 'Month 4', value: 25.42 },
+  { month: 'Month 5', value: 24.96 },
+  { month: 'Month 6', value: 24.58 },
 ];

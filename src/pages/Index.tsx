@@ -2,9 +2,10 @@
 import React from 'react';
 import Header from '@/components/Header';
 import VIXChart from '@/components/VIXChart';
+import VIXFuturesChart from '@/components/VIXFuturesChart';
 import SentimentIndicator from '@/components/SentimentIndicator';
 import StatisticCard from '@/components/StatisticCard';
-import { vixHistoricalData, marketSentiment, vixStatistics, marketHeadlines } from '@/lib/mockData';
+import { vixHistoricalData, marketSentiment, vixStatistics, marketHeadlines, vixFuturesData } from '@/lib/mockData';
 
 const Index = () => {
   return (
@@ -16,6 +17,9 @@ const Index = () => {
           {/* Main chart area */}
           <div className="lg:col-span-2 space-y-6">
             <VIXChart data={vixHistoricalData} />
+            
+            {/* VIX Futures Chart (new) */}
+            <VIXFuturesChart data={vixFuturesData} />
             
             {/* Stats row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
