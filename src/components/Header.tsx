@@ -18,9 +18,9 @@ const Header = () => {
         const data = await scrapeCurrentVIX();
         if (data) {
           setVixData({
-            vixValue: data.value,
+            vixValue: parseFloat(data.value),
             vixChange: parseFloat(data.change),
-            vixChangePercent: data.changePercent
+            vixChangePercent: parseFloat(data.changePercent)
           });
         }
       } catch (error) {
