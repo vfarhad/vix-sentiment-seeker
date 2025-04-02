@@ -1,3 +1,4 @@
+
 import { toast } from "sonner";
 
 export interface MarketIndex {
@@ -22,6 +23,16 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
       { symbol: "^VIX", name: "VIX" }
     ];
 
+    // Check if we should use fallback data immediately (for development or when API is known to be limited)
+    const useAllFallbackData = true; // Set to true if API is consistently returning empty objects
+    
+    if (useAllFallbackData) {
+      console.log("Using fallback data for all indices due to API limitations");
+      toast.info('Using simulated market data');
+      return generateAllFallbackData();
+    }
+    
+    // If not using all fallback data, attempt to fetch from API
     // Fetch data for each index with a small delay between requests to avoid API limits
     const results: MarketIndex[] = [];
     
@@ -29,7 +40,7 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
       try {
         // Add delay between requests to avoid hitting rate limits
         if (results.length > 0) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 1500));
         }
         
         const response = await fetch(
@@ -42,7 +53,7 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
         
         const data = await response.json();
         
-        // Check if we have valid data with the GLOBAL_QUOTE format
+        // Check if we have valid data with the GLOBAL_QUOTE format or if it's an empty object
         if (data["Global Quote"] && Object.keys(data["Global Quote"]).length > 0) {
           const quote = data["Global Quote"];
           
@@ -75,7 +86,7 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
     return results;
   } catch (error) {
     console.error('Error fetching market data:', error);
-    toast.error('Using simulated market data');
+    toast.info('Using simulated market data');
     
     // Generate complete simulated data as fallback
     return generateAllFallbackData();
