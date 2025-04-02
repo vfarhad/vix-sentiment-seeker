@@ -16,7 +16,8 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
       { symbol: "^DJI", name: "DOW" },       // Dow Jones Industrial Average
       { symbol: "^IXIC", name: "NASDAQ" },   // NASDAQ Composite Index
       { symbol: "^RUT", name: "RUSSELL" },   // Russell 2000 Index
-      { symbol: "^VIX", name: "VIX" }        // VIX Index
+      { symbol: "^VIX", name: "VIX" },       // VIX Index
+      { symbol: "AAPL", name: "APPLE" }      // Apple Inc. stock
     ];
 
     // For debugging/development, set to true if API is not working

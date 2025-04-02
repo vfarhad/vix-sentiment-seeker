@@ -1,4 +1,3 @@
-
 // Mock data for VIX chart
 export const vixHistoricalData = [
   { date: '2023-01-01', value: 22.05 },
@@ -74,6 +73,12 @@ export const marketIndices = [
     value: '24.85',
     change: '+1.09',
     changePercent: '+4.58%'
+  },
+  {
+    name: 'APPLE',
+    value: '169.25',
+    change: '+2.34',
+    changePercent: '+1.40%'
   },
 ];
 
