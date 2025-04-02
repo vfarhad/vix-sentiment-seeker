@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 import { applyProxy, findWorkingProxy } from "./corsProxyService";
 
