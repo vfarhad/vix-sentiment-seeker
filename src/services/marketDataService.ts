@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 import { MarketIndex, MarketStatus, HistoricalData, SearchResult, FMPHistoricalData } from '@/types/marketData';
 import { generateFallbackData, generateAllFallbackData } from './fallbackDataService';
@@ -11,13 +10,13 @@ export type { MarketIndex } from '@/types/marketData';
 // Fetch market indices data
 export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
   try {
-    // Define indices to fetch with their symbols
+    // Define indices to fetch with their symbols - using proper index tickers
     const indices = [
-      { symbol: "SPY", name: "S&P 500" },   // S&P 500 ETF
-      { symbol: "DIA", name: "DOW" },       // Dow Jones ETF
-      { symbol: "QQQ", name: "NASDAQ" },    // NASDAQ ETF  
-      { symbol: "IWM", name: "RUSSELL" },   // Russell 2000 ETF
-      { symbol: "^VIX", name: "VIX" }       // VIX index (FMP uses ^ for indices)
+      { symbol: "^GSPC", name: "S&P 500" },  // S&P 500 Index
+      { symbol: "^DJI", name: "DOW" },       // Dow Jones Industrial Average
+      { symbol: "^IXIC", name: "NASDAQ" },   // NASDAQ Composite Index
+      { symbol: "^RUT", name: "RUSSELL" },   // Russell 2000 Index
+      { symbol: "^VIX", name: "VIX" }        // VIX Index
     ];
 
     // For debugging/development, set to true if API is not working
