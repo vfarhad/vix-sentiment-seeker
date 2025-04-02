@@ -1,3 +1,4 @@
+
 import { toast } from "sonner";
 
 export interface MarketIndex {
@@ -15,12 +16,13 @@ const FINNHUB_API_KEY = "cvmr0r1r01ql90pvnmt0cvmr0r1r01ql90pvnmtg";
 export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
   try {
     // Define indices to fetch with their symbols
+    // Using symbols that work better with Finnhub's free tier
     const indices = [
-      { symbol: "^DJI", name: "DOW" },
-      { symbol: "^SPX", name: "S&P 500" },
-      { symbol: "^IXIC", name: "NASDAQ" },
-      { symbol: "^RUT", name: "RUSSELL" },
-      { symbol: "^VIX", name: "VIX" }
+      { symbol: "SPY", name: "S&P 500" },   // S&P 500 ETF
+      { symbol: "DIA", name: "DOW" },       // Dow Jones ETF
+      { symbol: "QQQ", name: "NASDAQ" },    // NASDAQ ETF  
+      { symbol: "IWM", name: "RUSSELL" },   // Russell 2000 ETF
+      { symbol: "UVXY", name: "VIX" }       // VIX ETF
     ];
 
     // For debugging/development, set to true if API is not working
@@ -43,7 +45,8 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
         
-        // Use Finnhub API
+        // Use Finnhub API with stock symbols instead of indices
+        // This works better with the free tier of Finnhub
         const response = await fetch(
           `${FINNHUB_API_URL}/quote?symbol=${index.symbol}&token=${FINNHUB_API_KEY}`
         );
@@ -56,7 +59,7 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
         console.log(`Finnhub data for ${index.name}:`, data);
         
         // Check if we have valid data from Finnhub
-        if (data && data.c) {
+        if (data && data.c && !data.error) {
           const value = parseFloat(data.c); // Current price
           const change = parseFloat(data.d); // Change
           const changePercent = parseFloat(data.dp); // Percent change
@@ -119,11 +122,11 @@ export const fetchHistoricalData = async (symbol: string, resolution = 'D', from
   }
 };
 
-// Function to search for symbols on Finnhub
-export const searchIndices = async (query: string) => {
+// Function to search for symbols on Finnhub with exchange parameter
+export const searchIndices = async (query: string, exchange = "US") => {
   try {
     const response = await fetch(
-      `${FINNHUB_API_URL}/search?q=${query}&token=${FINNHUB_API_KEY}`
+      `${FINNHUB_API_URL}/search?q=${query}&exchange=${exchange}&token=${FINNHUB_API_KEY}`
     );
     
     if (!response.ok) {
