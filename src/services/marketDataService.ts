@@ -8,12 +8,13 @@ export interface MarketIndex {
   changePercent: string;
 }
 
+// Finnhub API configuration
+const FINNHUB_API_KEY = "cvmr0r1r01ql90pvnmt0cvmr0r1r01ql90pvnmtg";
+const FINNHUB_SECRET = "cvmr0r1r01ql90pvnmug";
+
 // Fetch market indices data
 export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
   try {
-    // Finnhub API configuration
-    const API_KEY = "cvmr0r1r01ql90pvnmt0cvmr0r1r01ql90pvnmtg";
-    
     // Define indices to fetch (Finnhub uses different symbols)
     const indices = [
       { symbol: "^DJI", finnhubSymbol: "DJIA", name: "DOW" },
@@ -43,8 +44,14 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
         
+        // Standard API call for quotes
         const response = await fetch(
-          `https://finnhub.io/api/v1/quote?symbol=${index.finnhubSymbol}&token=${API_KEY}`
+          `https://finnhub.io/api/v1/quote?symbol=${index.finnhubSymbol}&token=${FINNHUB_API_KEY}`,
+          {
+            headers: {
+              'X-Finnhub-Secret': FINNHUB_SECRET
+            }
+          }
         );
         
         if (!response.ok) {
@@ -94,6 +101,31 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
     // Generate complete simulated data as fallback
     return generateAllFallbackData();
   }
+};
+
+// Webhook handler for Finnhub real-time updates
+export const setupFinnhubWebhook = (callback: (data: any) => void) => {
+  // This function would be used in a server environment to handle incoming webhooks
+  // For a client-side only app, this is provided as a reference for server implementation
+  
+  // Example webhook server pseudo-code:
+  // app.post('/api/finnhub-webhook', (req, res) => {
+  //   // Always respond with 200 immediately to acknowledge receipt
+  //   res.status(200).send('OK');
+  //   
+  //   // Verify the Finnhub secret header
+  //   const finnhubSecret = req.headers['x-finnhub-secret'];
+  //   if (finnhubSecret !== FINNHUB_SECRET) {
+  //     console.error('Invalid Finnhub secret');
+  //     return;
+  //   }
+  //   
+  //   // Process the webhook data
+  //   const data = req.body;
+  //   callback(data);
+  // });
+  
+  console.info("Finnhub webhook support is included in the code but requires server-side implementation");
 };
 
 // Generate fallback data for a single index
