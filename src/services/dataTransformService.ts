@@ -1,25 +1,19 @@
 
-import { MarketIndex } from '@/types/marketData';
+import { MarketIndex, FinnhubQuote } from '@/types/marketData';
 
-// Transform raw API data into MarketIndex format
-export const transformIndexData = (
+// Transform Finnhub quote data into MarketIndex format
+export const transformFinnhubData = (
   indexName: string, 
-  previousClose: any, 
-  currentQuote: any
+  quoteData: FinnhubQuote
 ): MarketIndex | null => {
-  if (!currentQuote.results || !previousClose.close) {
+  if (!quoteData || typeof quoteData.c === 'undefined') {
     return null;
   }
 
-  const value = currentQuote.results.p; // Current price
-  const prevClose = previousClose.close;
-  const change = value - prevClose;
-  const changePercent = (change / prevClose) * 100;
-  
   return {
     name: indexName,
-    value: indexName === "VIX" ? value.toFixed(2) : value.toLocaleString(),
-    change: change.toFixed(2),
-    changePercent: `${changePercent.toFixed(2)}%`
+    value: indexName === "VIX" ? quoteData.c.toFixed(2) : quoteData.c.toLocaleString(),
+    change: quoteData.d.toFixed(2),
+    changePercent: `${quoteData.dp.toFixed(2)}%`
   };
 };

@@ -3,12 +3,15 @@ import { toast } from "sonner";
 import { MarketIndex, MarketStatus, HistoricalData, SearchResult } from '@/types/marketData';
 import { generateFallbackData, generateAllFallbackData } from './fallbackDataService';
 import { 
-  fetchPolygonIndexData, 
-  fetchPolygonHistoricalData, 
-  searchPolygonSymbols, 
-  fetchPolygonMarketStatus 
-} from './polygonAPIService';
-import { transformIndexData } from './dataTransformService';
+  fetchFinnhubQuote, 
+  fetchFinnhubHistoricalData, 
+  searchFinnhubSymbols, 
+  fetchFinnhubMarketStatus 
+} from './finnhubAPIService';
+import { transformFinnhubData } from './dataTransformService';
+
+// Export MarketIndex type for use in components
+export type { MarketIndex } from '@/types/marketData';
 
 // Fetch market indices data
 export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
@@ -42,16 +45,11 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
         
-        // Get previous day date
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const dateString = yesterday.toISOString().split('T')[0];
-        
-        // Fetch data from Polygon API
-        const { previousData, quoteData } = await fetchPolygonIndexData(index.symbol, dateString);
+        // Fetch data from Finnhub API
+        const quoteData = await fetchFinnhubQuote(index.symbol);
         
         // Transform data to MarketIndex format
-        const transformedData = transformIndexData(index.name, previousData, quoteData);
+        const transformedData = transformFinnhubData(index.name, quoteData);
         
         if (transformedData) {
           results.push(transformedData);
@@ -81,7 +79,7 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
     
     return results;
   } catch (error) {
-    console.error('Error fetching market data from Polygon:', error);
+    console.error('Error fetching market data from Finnhub:', error);
     toast.info('Using simulated market data');
     
     // Generate complete simulated data as fallback
@@ -95,20 +93,23 @@ export const fetchHistoricalData = async (
   from = Math.floor(Date.now() / 1000 - 30 * 24 * 60 * 60), 
   to = Math.floor(Date.now() / 1000)
 ): Promise<HistoricalData> => {
-  const fromDate = new Date(from * 1000).toISOString().split('T')[0];
-  const toDate = new Date(to * 1000).toISOString().split('T')[0];
-  
-  return await fetchPolygonHistoricalData(symbol, fromDate, toDate);
+  return await fetchFinnhubHistoricalData(symbol, from, to);
 };
 
 // Function to search for symbols
 export const searchIndices = async (query: string, exchange = "US"): Promise<SearchResult> => {
-  return await searchPolygonSymbols(query);
+  const result = await searchFinnhubSymbols(query);
+  
+  // Transform to expected SearchResult format
+  return {
+    count: result.count,
+    result: result.result
+  };
 };
 
 // Fetch market status
 export const fetchMarketStatus = async (exchange = "US"): Promise<MarketStatus> => {
-  return await fetchPolygonMarketStatus(exchange);
+  return await fetchFinnhubMarketStatus(exchange);
 };
 
 // Function to refresh data at regular intervals
