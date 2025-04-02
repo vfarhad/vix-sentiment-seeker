@@ -1,6 +1,8 @@
 
 import React from 'react';
 import { 
+  LineChart,
+  Line,
   BarChart, 
   Bar, 
   XAxis, 
@@ -106,7 +108,7 @@ const VIXFuturesChart: React.FC<VIXFuturesChartProps> = ({ data }) => {
         <h2 className="text-lg font-semibold mb-4">VIX Futures Curve</h2>
         <div className="h-[250px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={processedData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+            <LineChart data={processedData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
               <XAxis dataKey="month" stroke="#64748B" />
               <YAxis stroke="#64748B" />
@@ -122,12 +124,15 @@ const VIXFuturesChart: React.FC<VIXFuturesChartProps> = ({ data }) => {
                   fontSize: 12
                 }}
               />
-              <Bar 
+              <Line 
+                type="monotone"
                 dataKey="value" 
-                fill="#3B82F6"
-                radius={[4, 4, 0, 0]}
+                stroke="#3B82F6"
+                strokeWidth={2}
+                dot={{ r: 4, strokeWidth: 1 }}
+                activeDot={{ r: 6, strokeWidth: 1 }}
               />
-            </BarChart>
+            </LineChart>
           </ResponsiveContainer>
         </div>
       </div>
