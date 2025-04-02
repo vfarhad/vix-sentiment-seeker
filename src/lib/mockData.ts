@@ -75,12 +75,6 @@ export const marketIndices = [
     change: '+1.09',
     changePercent: '+4.58%'
   },
-  {
-    name: 'AAPL',
-    value: '169.25',
-    change: '+2.34',
-    changePercent: '+1.40%'
-  },
 ];
 
 // VIX stats

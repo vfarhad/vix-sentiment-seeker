@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ChartCandlestick, Apple } from 'lucide-react';
+import { ChartCandlestick } from 'lucide-react';
 import { marketSentiment } from '@/lib/mockData';
 import { useQuery } from '@tanstack/react-query';
 import { fetchMarketIndices } from '@/services/marketDataService';
