@@ -24,7 +24,7 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
     ];
 
     // For debugging/development, set to true if API is not working
-    const useAllFallbackData = false;
+    const useAllFallbackData = true; // Switching to true since the API is not returning valid data for most symbols
     
     if (useAllFallbackData) {
       console.log("Using fallback data for all indices due to API limitations");
