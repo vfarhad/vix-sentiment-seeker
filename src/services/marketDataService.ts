@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 
 export interface MarketIndex {
@@ -8,27 +7,24 @@ export interface MarketIndex {
   changePercent: string;
 }
 
-// Investing.com API configuration
-const INVESTING_API_URL = "https://api.investing.com/api/financialdata";
-const INVESTING_HEADERS = {
-  'Accept': 'application/json',
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-};
+// Finnhub API configuration
+const FINNHUB_API_URL = "https://finnhub.io/api/v1";
+const FINNHUB_API_KEY = "cvmr0r1r01ql90pvnmt0cvmr0r1r01ql90pvnmtg";
 
-// Fetch market indices data from Investing.com
+// Fetch market indices data from Finnhub
 export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
   try {
-    // Define indices to fetch with Investing.com IDs
+    // Define indices to fetch with their symbols
     const indices = [
-      { id: "dow-jones", name: "DOW" },
-      { id: "us-spx-500", name: "S&P 500" },
-      { id: "nasdaq-composite", name: "NASDAQ" },
-      { id: "russell-2000", name: "RUSSELL" },
-      { id: "volatility-s-p-500", name: "VIX" }
+      { symbol: "^DJI", name: "DOW" },
+      { symbol: "^SPX", name: "S&P 500" },
+      { symbol: "^IXIC", name: "NASDAQ" },
+      { symbol: "^RUT", name: "RUSSELL" },
+      { symbol: "^VIX", name: "VIX" }
     ];
 
     // For debugging/development, set to true if API is not working
-    const useAllFallbackData = false; // We'll try to use real data now
+    const useAllFallbackData = false; // We'll try to use real data
     
     if (useAllFallbackData) {
       console.log("Using fallback data for all indices due to API limitations");
@@ -47,12 +43,9 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
         
-        // Use Investing.com API
+        // Use Finnhub API
         const response = await fetch(
-          `${INVESTING_API_URL}/${index.id}`,
-          {
-            headers: INVESTING_HEADERS
-          }
+          `${FINNHUB_API_URL}/quote?symbol=${index.symbol}&token=${FINNHUB_API_KEY}`
         );
         
         if (!response.ok) {
@@ -60,14 +53,13 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
         }
         
         const data = await response.json();
-        console.log(`Investing.com data for ${index.name}:`, data);
+        console.log(`Finnhub data for ${index.name}:`, data);
         
-        // Check if we have valid data with the Investing.com format
-        if (data && data.quotes && data.quotes[0]) {
-          const quote = data.quotes[0];
-          const value = parseFloat(quote.last);
-          const change = parseFloat(quote.change);
-          const changePercent = parseFloat(quote.change_percentage);
+        // Check if we have valid data from Finnhub
+        if (data && data.c) {
+          const value = parseFloat(data.c); // Current price
+          const change = parseFloat(data.d); // Change
+          const changePercent = parseFloat(data.dp); // Percent change
           
           results.push({
             name: index.name,
@@ -101,7 +93,7 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
     
     return results;
   } catch (error) {
-    console.error('Error fetching market data from Investing.com:', error);
+    console.error('Error fetching market data from Finnhub:', error);
     toast.info('Using simulated market data');
     
     // Generate complete simulated data as fallback
@@ -109,14 +101,11 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
   }
 };
 
-// Function to fetch historical data for a specific index (e.g., VIX)
-export const fetchHistoricalData = async (indexId: string, period = '1-month') => {
+// Function to fetch historical data for a specific index 
+export const fetchHistoricalData = async (symbol: string, resolution = 'D', from = Math.floor(Date.now() / 1000 - 30 * 24 * 60 * 60), to = Math.floor(Date.now() / 1000)) => {
   try {
     const response = await fetch(
-      `${INVESTING_API_URL}/${indexId}/historical/chart?period=${period}`,
-      {
-        headers: INVESTING_HEADERS
-      }
+      `${FINNHUB_API_URL}/stock/candle?symbol=${symbol}&resolution=${resolution}&from=${from}&to=${to}&token=${FINNHUB_API_KEY}`
     );
     
     if (!response.ok) {
@@ -125,19 +114,16 @@ export const fetchHistoricalData = async (indexId: string, period = '1-month') =
     
     return await response.json();
   } catch (error) {
-    console.error(`Error fetching historical data for ${indexId}:`, error);
+    console.error(`Error fetching historical data for ${symbol}:`, error);
     throw error;
   }
 };
 
-// Function to search for indices on Investing.com
+// Function to search for symbols on Finnhub
 export const searchIndices = async (query: string) => {
   try {
     const response = await fetch(
-      `${INVESTING_API_URL}/search?q=${query}&type=indices`,
-      {
-        headers: INVESTING_HEADERS
-      }
+      `${FINNHUB_API_URL}/search?q=${query}&token=${FINNHUB_API_KEY}`
     );
     
     if (!response.ok) {
