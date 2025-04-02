@@ -1,18 +1,49 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import MarketBanner from '@/components/MarketBanner';
 import VIXChart from '@/components/VIXChart';
 import VIXFuturesChart from '@/components/VIXFuturesChart';
 import SentimentIndicator from '@/components/SentimentIndicator';
 import StatisticCard from '@/components/StatisticCard';
-import { vixHistoricalData, marketSentiment, vixStatistics, marketHeadlines, vixFuturesData, marketIndices } from '@/lib/mockData';
+import { vixHistoricalData, marketSentiment, vixStatistics, marketHeadlines, vixFuturesData } from '@/lib/mockData';
+import { fetchMarketIndices, setupMarketDataPolling, MarketIndex } from '@/services/marketDataService';
+import { useQuery } from '@tanstack/react-query';
 
 const Index = () => {
+  const [marketIndices, setMarketIndices] = useState<MarketIndex[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Use react-query to fetch market data
+  const { data, isError } = useQuery({
+    queryKey: ['marketIndices'],
+    queryFn: fetchMarketIndices,
+    refetchInterval: 60000, // Refetch every minute
+  });
+
+  useEffect(() => {
+    if (data) {
+      setMarketIndices(data);
+      setIsLoading(false);
+    }
+  }, [data]);
+
+  useEffect(() => {
+    // Fallback if react-query fails
+    if (isError) {
+      const cleanup = setupMarketDataPolling((newData) => {
+        setMarketIndices(newData);
+        setIsLoading(false);
+      });
+      
+      return cleanup;
+    }
+  }, [isError]);
+
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <Header />
-      <MarketBanner indices={marketIndices} />
+      <MarketBanner indices={marketIndices} isLoading={isLoading} />
       
       <main className="flex-1 p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -20,7 +51,7 @@ const Index = () => {
           <div className="lg:col-span-2 space-y-6">
             <VIXChart data={vixHistoricalData} />
             
-            {/* VIX Futures Chart (new) */}
+            {/* VIX Futures Chart */}
             <VIXFuturesChart data={vixFuturesData} />
             
             {/* Stats row */}
@@ -76,7 +107,7 @@ const Index = () => {
       </main>
       
       <footer className="bg-card py-3 px-6 border-t border-border text-center text-sm text-muted-foreground">
-        <p>VIX Sentiment Seeker - Data is simulated for demonstration purposes</p>
+        <p>VIX Sentiment Seeker - Real-time market data updated every minute</p>
       </footer>
     </div>
   );

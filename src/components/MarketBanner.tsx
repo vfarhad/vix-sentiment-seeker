@@ -9,7 +9,26 @@ interface MarketIndexProps {
   changePercent: string;
 }
 
-const MarketBanner: React.FC<{ indices: MarketIndexProps[] }> = ({ indices }) => {
+const MarketBanner: React.FC<{ indices: MarketIndexProps[], isLoading?: boolean }> = ({ 
+  indices, 
+  isLoading = false 
+}) => {
+  if (isLoading) {
+    return (
+      <div className="w-full bg-secondary py-2 px-4 overflow-x-auto">
+        <div className="flex space-x-6 justify-between min-w-max lg:min-w-0">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="flex flex-col items-center px-4 py-1">
+              <div className="h-4 w-16 bg-muted animate-pulse rounded mb-1"></div>
+              <div className="h-5 w-20 bg-muted animate-pulse rounded mb-1"></div>
+              <div className="h-3 w-14 bg-muted animate-pulse rounded"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full bg-secondary py-2 px-4 overflow-x-auto">
       <div className="flex space-x-6 justify-between min-w-max lg:min-w-0">
