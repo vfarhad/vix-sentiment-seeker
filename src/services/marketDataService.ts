@@ -11,20 +11,20 @@ export interface MarketIndex {
 // Fetch market indices data
 export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
   try {
-    // Alpha Vantage API configuration
-    const API_KEY = "OBOZK3AWYR7261VM";
+    // Finnhub API configuration
+    const API_KEY = "cvmr0r1r01ql90pvnmt0cvmr0r1r01ql90pvnmtg";
     
-    // Using GLOBAL_QUOTE endpoint as it's more suitable for current index values
+    // Define indices to fetch (Finnhub uses different symbols)
     const indices = [
-      { symbol: "^DJI", name: "DOW" },
-      { symbol: "^GSPC", name: "S&P 500" },
-      { symbol: "^IXIC", name: "NASDAQ" },
-      { symbol: "^RUT", name: "RUSSELL" },
-      { symbol: "^VIX", name: "VIX" }
+      { symbol: "^DJI", finnhubSymbol: "DJIA", name: "DOW" },
+      { symbol: "^GSPC", finnhubSymbol: "SPX", name: "S&P 500" },
+      { symbol: "^IXIC", finnhubSymbol: "NDX", name: "NASDAQ" },
+      { symbol: "^RUT", finnhubSymbol: "RUT", name: "RUSSELL" },
+      { symbol: "^VIX", finnhubSymbol: "VIX", name: "VIX" }
     ];
 
-    // Check if we should use fallback data immediately (for development or when API is known to be limited)
-    const useAllFallbackData = true; // Set to true if API is consistently returning empty objects
+    // For debugging/development, set to true if API is not working
+    const useAllFallbackData = false;
     
     if (useAllFallbackData) {
       console.log("Using fallback data for all indices due to API limitations");
@@ -32,19 +32,19 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
       return generateAllFallbackData();
     }
     
-    // If not using all fallback data, attempt to fetch from API
     // Fetch data for each index with a small delay between requests to avoid API limits
     const results: MarketIndex[] = [];
+    let usedSomeFallback = false;
     
     for (const index of indices) {
       try {
         // Add delay between requests to avoid hitting rate limits
         if (results.length > 0) {
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
         
         const response = await fetch(
-          `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${index.symbol}&apikey=${API_KEY}`
+          `https://finnhub.io/api/v1/quote?symbol=${index.finnhubSymbol}&token=${API_KEY}`
         );
         
         if (!response.ok) {
@@ -53,23 +53,24 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
         
         const data = await response.json();
         
-        // Check if we have valid data with the GLOBAL_QUOTE format or if it's an empty object
-        if (data["Global Quote"] && Object.keys(data["Global Quote"]).length > 0) {
-          const quote = data["Global Quote"];
-          
+        // Check if we have valid data with the Finnhub format
+        if (data && data.c && data.d !== null && data.dp !== null) {
+          // Finnhub data - c: current price, d: change, dp: percent change
           results.push({
             name: index.name,
-            value: parseFloat(quote["05. price"]).toLocaleString(),
-            change: parseFloat(quote["09. change"]).toFixed(2),
-            changePercent: quote["10. change percent"]
+            value: data.c.toLocaleString(),
+            change: data.d.toFixed(2),
+            changePercent: `${data.dp.toFixed(2)}%`
           });
         } else {
           console.warn(`No valid data returned for ${index.name}, using fallback`);
           results.push(generateFallbackData(index.name));
+          usedSomeFallback = true;
         }
       } catch (err) {
         console.warn(`Error fetching ${index.name}, using fallback data`, err);
         results.push(generateFallbackData(index.name));
+        usedSomeFallback = true;
       }
     }
     
@@ -78,9 +79,11 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
       throw new Error("No valid market data received");
     }
     
-    // Display toast only if using some fallback data but not all
-    if (results.some(index => index.change.includes('+'))) {
+    // Display toast if using some fallback data but not all
+    if (usedSomeFallback) {
       toast.warning('Some market data is simulated');
+    } else {
+      toast.success('Live market data loaded');
     }
     
     return results;
