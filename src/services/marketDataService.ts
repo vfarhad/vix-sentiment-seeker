@@ -69,6 +69,7 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
         const transformedData = transformFMPData(index.name, quoteData);
         
         if (transformedData) {
+          console.log(`Successfully transformed data for ${index.name}:`, transformedData);
           results.push(transformedData);
         } else {
           console.warn(`No valid data returned for ${index.name}, using fallback`);

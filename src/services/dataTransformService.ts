@@ -10,11 +10,22 @@ export const transformFinnhubData = (
     return null;
   }
 
+  // Standardize the display name
+  const displayName = 
+    indexName === "^DJI" ? "DOW" :
+    indexName === "^GSPC" ? "S&P 500" :
+    indexName === "^IXIC" ? "NASDAQ" :
+    indexName === "^RUT" ? "RUSSELL" :
+    indexName === "^VIX" ? "VIX" :
+    indexName;
+
+  const isVIX = displayName === "VIX";
+
   return {
-    name: indexName,
-    value: indexName === "VIX" ? quoteData.c.toFixed(2) : quoteData.c.toLocaleString(),
-    change: quoteData.d.toFixed(2),
-    changePercent: `${quoteData.dp.toFixed(2)}%`
+    name: displayName,
+    value: isVIX ? quoteData.c.toFixed(2) : quoteData.c.toLocaleString(),
+    change: (quoteData.d >= 0 ? '+' : '') + quoteData.d.toFixed(2),
+    changePercent: (quoteData.dp >= 0 ? '+' : '') + quoteData.dp.toFixed(2) + '%'
   };
 };
 
@@ -27,10 +38,21 @@ export const transformFMPData = (
     return null;
   }
 
+  // Standardize the display name
+  const displayName = 
+    indexName === "^DJI" ? "DOW" :
+    indexName === "^GSPC" ? "S&P 500" :
+    indexName === "^IXIC" ? "NASDAQ" :
+    indexName === "^RUT" ? "RUSSELL" :
+    indexName === "^VIX" ? "VIX" :
+    indexName;
+
+  const isVIX = displayName === "VIX";
+  
   return {
-    name: indexName,
-    value: indexName === "VIX" ? quoteData.price.toFixed(2) : quoteData.price.toLocaleString(),
-    change: quoteData.change.toFixed(2),
-    changePercent: `${quoteData.changesPercentage.toFixed(2)}%`
+    name: displayName,
+    value: isVIX ? quoteData.price.toFixed(2) : quoteData.price.toLocaleString(),
+    change: (quoteData.change >= 0 ? '+' : '') + quoteData.change.toFixed(2),
+    changePercent: (quoteData.changesPercentage >= 0 ? '+' : '') + quoteData.changesPercentage.toFixed(2) + '%'
   };
 };

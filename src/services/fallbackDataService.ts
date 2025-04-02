@@ -3,35 +3,33 @@ import { MarketIndex } from '@/types/marketData';
 
 // Generate fallback data for a single index
 export const generateFallbackData = (indexName: string): MarketIndex => {
-  const isVIX = indexName === "VIX";
+  const isVIX = indexName === "VIX" || indexName === "^VIX" || indexName.includes("VIX");
   const baseValue = 
-    indexName === "DOW" ? 35000 + Math.random() * 3000 :
-    indexName === "S&P 500" ? 4800 + Math.random() * 400 :
-    indexName === "NASDAQ" ? 15000 + Math.random() * 1500 :
-    indexName === "RUSSELL" ? 1900 + Math.random() * 200 :
+    indexName === "DOW" || indexName === "^DJI" || indexName.includes("DOW") ? 35000 + Math.random() * 3000 :
+    indexName === "S&P 500" || indexName === "^GSPC" || indexName.includes("SPX") ? 4800 + Math.random() * 400 :
+    indexName === "NASDAQ" || indexName === "^IXIC" || indexName.includes("NASDAQ") ? 15000 + Math.random() * 1500 :
+    indexName === "RUSSELL" || indexName === "^RUT" || indexName.includes("RUSSELL") ? 1900 + Math.random() * 200 :
     indexName === "AAPL" ? 160 + Math.random() * 40 :
-    indexName === "^GSPC" ? 4800 + Math.random() * 400 :
-    indexName === "^DJI" ? 35000 + Math.random() * 3000 :
-    indexName === "^IXIC" ? 15000 + Math.random() * 1500 :
-    indexName === "^RUT" ? 1900 + Math.random() * 200 :
-    indexName === "^VIX" ? 15 + Math.random() * 15 :
-    indexName.includes("SPX") ? 4800 + Math.random() * 400 :
-    indexName.includes("VIX") ? 15 + Math.random() * 15 :
-    indexName.includes("DOW") ? 35000 + Math.random() * 3000 :
-    indexName.includes("NASDAQ") ? 15000 + Math.random() * 1500 :
-    indexName.includes("RUSSELL") ? 1900 + Math.random() * 200 :
+    isVIX ? 15 + Math.random() * 15 :
     100 + Math.random() * 50; // Default for unknown indices
   
-  const isPositive = isVIX || indexName.includes("VIX") || indexName === "^VIX" ? 
-    Math.random() < 0.4 : Math.random() > 0.4; // VIX typically moves opposite to markets
+  const isPositive = isVIX ? Math.random() < 0.4 : Math.random() > 0.4; // VIX typically moves opposite to markets
   
   const changeValue = parseFloat((Math.random() * (isVIX ? 3 : 80)).toFixed(2));
   const changePercent = parseFloat((Math.random() * (isVIX ? 8 : 1.8)).toFixed(2));
   
+  // Standardize the display name regardless of the input symbol
+  const displayName = 
+    (indexName === "^DJI" || indexName.includes("DOW")) ? "DOW" :
+    (indexName === "^GSPC" || indexName.includes("SPX")) ? "S&P 500" :
+    (indexName === "^IXIC" || indexName.includes("NASDAQ")) ? "NASDAQ" :
+    (indexName === "^RUT" || indexName.includes("RUSSELL")) ? "RUSSELL" :
+    (indexName === "^VIX" || indexName.includes("VIX")) ? "VIX" :
+    indexName;
+  
   return {
-    name: indexName,
-    value: isVIX || indexName.includes("VIX") || indexName === "^VIX" ? 
-      baseValue.toFixed(2) : Math.floor(baseValue).toLocaleString(),
+    name: displayName,
+    value: isVIX ? baseValue.toFixed(2) : Math.floor(baseValue).toLocaleString(),
     change: (isPositive ? '+' : '-') + changeValue.toFixed(2),
     changePercent: (isPositive ? '+' : '-') + changePercent.toFixed(2) + '%'
   };
