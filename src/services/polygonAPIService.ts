@@ -1,13 +1,26 @@
 import { toast } from "sonner";
-import { FMP_API_URL, FMP_API_KEY } from "@/config/apiConfig";
+import { MARKETSTACK_API_URL, MARKETSTACK_API_KEY } from '@/config/apiConfig';
 
-// This file is kept for compatibility but is no longer in use
-// All API calls have been migrated to the FMP API service
+// This file is now using MarketStack configuration instead of Polygon
+// It should eventually be refactored or removed if no longer needed
+// For now, let's keep the file structure but make it compatible with the build
 
-// Placeholder function to prevent build errors
-export const fetchPolygonQuote = async (symbol: string): Promise<any> => {
-  console.warn("Polygon API service is deprecated, using FMP instead");
-  throw new Error("Polygon API service is deprecated, use FMP API instead");
+export const fetchPolygonQuote = async (symbol: string) => {
+  console.warn('Polygon API service is deprecated, use MarketStack instead');
+  throw new Error('Polygon API service is deprecated');
 };
 
-// Other placeholder functions if needed
+export const fetchPolygonHistoricalData = async (symbol: string, from: number, to: number) => {
+  console.warn('Polygon API service is deprecated, use MarketStack instead');
+  throw new Error('Polygon API service is deprecated');
+};
+
+export const fetchPolygonMarketStatus = async () => {
+  console.warn('Polygon API service is deprecated, use MarketStack instead');
+  throw new Error('Polygon API service is deprecated');
+};
+
+export const fetchPolygonAvailableIndices = async () => {
+  console.warn('Polygon API service is deprecated, use MarketStack instead');
+  return [];
+};
