@@ -1,9 +1,9 @@
 
 import { toast } from "sonner";
-import { MarketIndex, MarketStatus, HistoricalData, SearchResult, FMPHistoricalData } from '@/types/marketData';
+import { MarketIndex, MarketStatus, HistoricalData, SearchResult } from '@/types/marketData';
 import { generateFallbackData, generateAllFallbackData } from './fallbackDataService';
-import { fetchFMPQuote, fetchFMPHistoricalData, fetchFMPMarketStatus, fetchFMPAvailableIndices } from './fmpAPIService';
-import { transformFMPData } from './dataTransformService';
+import { fetchMarketStackQuote, fetchMarketStackHistoricalData, fetchMarketStackMarketStatus, fetchMarketStackAvailableIndices, MarketStackHistoricalData } from './marketstackAPIService';
+import { transformMarketStackData } from './dataTransformService';
 
 // Export MarketIndex type for use in components
 export type { MarketIndex } from '@/types/marketData';
@@ -11,7 +11,7 @@ export type { MarketIndex } from '@/types/marketData';
 // Fetch available market indices
 export const fetchAvailableIndices = async () => {
   try {
-    return await fetchFMPAvailableIndices();
+    return await fetchMarketStackAvailableIndices();
   } catch (error) {
     console.error('Error fetching available indices:', error);
     return [];
@@ -21,14 +21,14 @@ export const fetchAvailableIndices = async () => {
 // Fetch market indices data
 export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
   try {
-    // Define indices to fetch with their symbols - using proper index tickers
+    // Define indices to fetch with their symbols - using proper index tickers for MarketStack
     const indices = [
-      { symbol: "^GSPC", name: "S&P 500" },  // S&P 500 Index
-      { symbol: "^DJI", name: "DOW" },       // Dow Jones Industrial Average
-      { symbol: "^IXIC", name: "NASDAQ" },   // NASDAQ Composite Index
-      { symbol: "^RUT", name: "RUSSELL" },   // Russell 2000 Index
-      { symbol: "^VIX", name: "VIX" },       // VIX Index
-      { symbol: "AAPL", name: "AAPL" }      // Apple Inc. stock
+      { symbol: "SPX", name: "S&P 500" },  // S&P 500 Index
+      { symbol: "DJI", name: "DOW" },      // Dow Jones Industrial Average
+      { symbol: "NDX", name: "NASDAQ" },   // NASDAQ Composite Index
+      { symbol: "RUT", name: "RUSSELL" },  // Russell 2000 Index
+      { symbol: "VIX", name: "VIX" },      // VIX Index
+      { symbol: "AAPL", name: "AAPL" }     // Apple Inc. stock
     ];
 
     // For debugging/development, set to true if API is not working
@@ -44,9 +44,6 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
     const results: MarketIndex[] = [];
     let usedSomeFallback = false;
     
-    // Check which indices can be fetched based on API limitations
-    const freeApiLimitedToStocks = true; // Free FMP API is limited to US stocks only
-    
     for (const index of indices) {
       try {
         // Add delay between requests to avoid hitting rate limits
@@ -54,19 +51,11 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
         
-        // Skip indices with "^" prefix if using free API that's limited to stocks
-        if (freeApiLimitedToStocks && index.symbol.startsWith('^')) {
-          console.warn(`Skipping ${index.name} due to free API limitation, using fallback`);
-          results.push(generateFallbackData(index.name));
-          usedSomeFallback = true;
-          continue;
-        }
-        
-        // Fetch data from FMP API
-        const quoteData = await fetchFMPQuote(index.symbol);
+        // Fetch data from MarketStack API
+        const quoteData = await fetchMarketStackQuote(index.symbol);
         
         // Transform data to MarketIndex format
-        const transformedData = transformFMPData(index.name, quoteData);
+        const transformedData = transformMarketStackData(index.name, quoteData);
         
         if (transformedData) {
           console.log(`Successfully transformed data for ${index.name}:`, transformedData);
@@ -97,7 +86,7 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
     
     return results;
   } catch (error) {
-    console.error('Error fetching market data from FMP:', error);
+    console.error('Error fetching market data from MarketStack:', error);
     toast.info('Using simulated market data');
     
     // Generate complete simulated data as fallback
@@ -112,25 +101,25 @@ export const fetchHistoricalData = async (
   to = Math.floor(Date.now() / 1000)
 ): Promise<HistoricalData> => {
   try {
-    // Convert Unix timestamps to YYYY-MM-DD format for FMP API
+    // Convert Unix timestamps to YYYY-MM-DD format for MarketStack API
     const fromDate = new Date(from * 1000).toISOString().split('T')[0];
     const toDate = new Date(to * 1000).toISOString().split('T')[0];
     
-    const fmpData = await fetchFMPHistoricalData(symbol, fromDate, toDate);
+    const marketStackData = await fetchMarketStackHistoricalData(symbol, fromDate, toDate);
     
-    // Transform FMP data to match the expected format
-    return transformFMPHistoricalData(fmpData);
+    // Transform MarketStack data to match the expected format
+    return transformMarketStackHistoricalData(marketStackData);
   } catch (error) {
     console.error('Error fetching historical data:', error);
     throw error;
   }
 };
 
-// Helper function to transform FMP historical data to our HistoricalData format
-const transformFMPHistoricalData = (fmpData: FMPHistoricalData): HistoricalData => {
-  // FMP returns historical data in reverse chronological order (newest first)
+// Helper function to transform MarketStack historical data to our HistoricalData format
+const transformMarketStackHistoricalData = (marketStackData: MarketStackHistoricalData): HistoricalData => {
+  // MarketStack returns historical data in reverse chronological order (newest first)
   // We need to reverse it to match our expected format
-  const historical = [...fmpData.historical].reverse();
+  const historical = [...marketStackData.data].reverse();
   
   return {
     c: historical.map(item => item.close),
@@ -146,7 +135,7 @@ const transformFMPHistoricalData = (fmpData: FMPHistoricalData): HistoricalData 
 // Function to search for symbols
 export const searchIndices = async (query: string): Promise<SearchResult> => {
   // For now, we'll return a mock search result
-  // In a future update, we can implement a real search with FMP
+  // In a future update, we can implement a real search with MarketStack
   return {
     count: 0,
     result: []
@@ -155,7 +144,7 @@ export const searchIndices = async (query: string): Promise<SearchResult> => {
 
 // Fetch market status
 export const fetchMarketStatus = async (exchange = "US"): Promise<MarketStatus> => {
-  return await fetchFMPMarketStatus();
+  return await fetchMarketStackMarketStatus();
 };
 
 // Function to refresh data at regular intervals
