@@ -1,3 +1,4 @@
+
 // Mock data for VIX chart
 export const vixHistoricalData = [
   { date: '2023-01-01', value: 22.05 },
@@ -41,6 +42,34 @@ export const marketSentiment = {
   vixChange: 1.09,
   vixChangePercent: 4.58,
 };
+
+// Major market indices data
+export const marketIndices = [
+  {
+    name: 'DOW',
+    value: '38,623.64',
+    change: '-118.04',
+    changePercent: '-0.31%'
+  },
+  {
+    name: 'S&P 500',
+    value: '5,274.38',
+    change: '-14.61',
+    changePercent: '-0.28%'
+  },
+  {
+    name: 'RUSSELL',
+    value: '2,058.72',
+    change: '-5.11',
+    changePercent: '-0.25%'
+  },
+  {
+    name: 'VIX',
+    value: '24.85',
+    change: '+1.09',
+    changePercent: '+4.58%'
+  },
+];
 
 // VIX stats
 export const vixStatistics = [

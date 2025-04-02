@@ -1,16 +1,18 @@
 
 import React from 'react';
 import Header from '@/components/Header';
+import MarketBanner from '@/components/MarketBanner';
 import VIXChart from '@/components/VIXChart';
 import VIXFuturesChart from '@/components/VIXFuturesChart';
 import SentimentIndicator from '@/components/SentimentIndicator';
 import StatisticCard from '@/components/StatisticCard';
-import { vixHistoricalData, marketSentiment, vixStatistics, marketHeadlines, vixFuturesData } from '@/lib/mockData';
+import { vixHistoricalData, marketSentiment, vixStatistics, marketHeadlines, vixFuturesData, marketIndices } from '@/lib/mockData';
 
 const Index = () => {
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <Header />
+      <MarketBanner indices={marketIndices} />
       
       <main className="flex-1 p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
