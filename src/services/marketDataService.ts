@@ -12,7 +12,7 @@ export interface MarketIndex {
 export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
   try {
     // Alpha Vantage API configuration
-    const API_KEY = "demo"; // Replace with your API key in production
+    const API_KEY = "OBOZK3AWYR7261VM"; // Using the provided API key
     const indices = [
       { symbol: "DJI", name: "DOW" },
       { symbol: "SPX", name: "S&P 500" },
@@ -35,7 +35,7 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
         const data = await response.json();
         
         // Check if we have valid data
-        if (data["Global Quote"]) {
+        if (data["Global Quote"] && Object.keys(data["Global Quote"]).length > 0) {
           const quote = data["Global Quote"];
           const value = parseFloat(quote["05. price"]).toLocaleString();
           const change = quote["09. change"];
