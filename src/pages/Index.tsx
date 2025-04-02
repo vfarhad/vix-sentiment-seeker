@@ -9,11 +9,15 @@ import StatisticCard from '@/components/StatisticCard';
 import MarketStatusBox from '@/components/MarketStatusBox';
 import { vixHistoricalData, marketSentiment, vixStatistics, marketHeadlines, vixFuturesData } from '@/lib/mockData';
 import { fetchMarketIndices, setupMarketDataPolling, MarketIndex } from '@/services/marketDataService';
+import { scrapeHistoricalVIX, scrapeVIXFutures, VIXHistoricalDataPoint, VIXFuturesDataPoint } from '@/services/vixScraperService';
 import { useQuery } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 const Index = () => {
   const [marketIndices, setMarketIndices] = useState<MarketIndex[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [historicalVIXData, setHistoricalVIXData] = useState<VIXHistoricalDataPoint[]>(vixHistoricalData);
+  const [vixFuturesValues, setVIXFuturesValues] = useState<VIXFuturesDataPoint[]>(vixFuturesData);
 
   // Use react-query to fetch market data
   const { data, isError } = useQuery({
@@ -41,6 +45,48 @@ const Index = () => {
     }
   }, [isError]);
 
+  // Fetch VIX historical data
+  useEffect(() => {
+    const fetchHistoricalVIX = async () => {
+      try {
+        const data = await scrapeHistoricalVIX();
+        if (data && data.length > 0) {
+          setHistoricalVIXData(data);
+          toast.success('VIX historical data loaded');
+        } else {
+          console.warn('No historical VIX data found, using fallback data');
+          toast.info('Using simulated VIX historical data');
+        }
+      } catch (error) {
+        console.error('Error fetching historical VIX data:', error);
+        toast.error('Failed to load VIX historical data');
+      }
+    };
+
+    fetchHistoricalVIX();
+  }, []);
+
+  // Fetch VIX futures data
+  useEffect(() => {
+    const fetchVIXFutures = async () => {
+      try {
+        const data = await scrapeVIXFutures();
+        if (data && data.length > 0) {
+          setVIXFuturesValues(data);
+          toast.success('VIX futures data loaded');
+        } else {
+          console.warn('No VIX futures data found, using fallback data');
+          toast.info('Using simulated VIX futures data');
+        }
+      } catch (error) {
+        console.error('Error fetching VIX futures data:', error);
+        toast.error('Failed to load VIX futures data');
+      }
+    };
+
+    fetchVIXFutures();
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <Header />
@@ -50,10 +96,10 @@ const Index = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main chart area */}
           <div className="lg:col-span-2 space-y-6">
-            <VIXChart data={vixHistoricalData} />
+            <VIXChart data={historicalVIXData} />
             
             {/* VIX Futures Chart */}
-            <VIXFuturesChart data={vixFuturesData} />
+            <VIXFuturesChart data={vixFuturesValues} />
             
             {/* Stats row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
