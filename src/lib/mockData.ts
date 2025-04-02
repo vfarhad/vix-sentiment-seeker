@@ -113,8 +113,8 @@ export const marketHeadlines = [
   },
 ];
 
-// VIX Futures data (new)
-export const vixFuturesData = [
+// VIX Futures data - kept as reference but not exported as default
+const vixFuturesData = [
   { month: 'Current', value: 24.85 },
   { month: 'Month 1', value: 25.63 },
   { month: 'Month 2', value: 26.12 },

@@ -7,7 +7,7 @@ import VIXFuturesChart from '@/components/VIXFuturesChart';
 import SentimentIndicator from '@/components/SentimentIndicator';
 import StatisticCard from '@/components/StatisticCard';
 import MarketStatusBox from '@/components/MarketStatusBox';
-import { vixHistoricalData, marketSentiment, vixStatistics, marketHeadlines, vixFuturesData } from '@/lib/mockData';
+import { vixHistoricalData, marketSentiment, vixStatistics, marketHeadlines } from '@/lib/mockData';
 import { fetchMarketIndices, setupMarketDataPolling, MarketIndex } from '@/services/marketDataService';
 import { scrapeHistoricalVIX, scrapeVIXFutures, VIXHistoricalDataPoint, VIXFuturesDataPoint } from '@/services/vixScraperService';
 import { useQuery } from '@tanstack/react-query';
@@ -16,8 +16,10 @@ import { toast } from 'sonner';
 const Index = () => {
   const [marketIndices, setMarketIndices] = useState<MarketIndex[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [historicalVIXData, setHistoricalVIXData] = useState<VIXHistoricalDataPoint[]>(vixHistoricalData);
-  const [vixFuturesValues, setVIXFuturesValues] = useState<VIXFuturesDataPoint[]>(vixFuturesData);
+  const [historicalVIXData, setHistoricalVIXData] = useState<VIXHistoricalDataPoint[]>([]);
+  const [vixFuturesValues, setVIXFuturesValues] = useState<VIXFuturesDataPoint[]>([]);
+  const [showVIXChart, setShowVIXChart] = useState(false);
+  const [showVIXFutures, setShowVIXFutures] = useState(false);
 
   // Use react-query to fetch market data
   const { data, isError } = useQuery({
@@ -52,14 +54,17 @@ const Index = () => {
         const data = await scrapeHistoricalVIX();
         if (data && data.length > 0) {
           setHistoricalVIXData(data);
+          setShowVIXChart(true);
           toast.success('VIX historical data loaded');
         } else {
-          console.warn('No historical VIX data found, using fallback data');
-          toast.info('Using simulated VIX historical data');
+          console.warn('No historical VIX data found');
+          toast.error('Failed to load VIX historical data');
+          setShowVIXChart(false);
         }
       } catch (error) {
         console.error('Error fetching historical VIX data:', error);
         toast.error('Failed to load VIX historical data');
+        setShowVIXChart(false);
       }
     };
 
@@ -73,14 +78,17 @@ const Index = () => {
         const data = await scrapeVIXFutures();
         if (data && data.length > 0) {
           setVIXFuturesValues(data);
+          setShowVIXFutures(true);
           toast.success('VIX futures data loaded');
         } else {
-          console.warn('No VIX futures data found, using fallback data');
-          toast.info('Using simulated VIX futures data');
+          console.warn('No VIX futures data found');
+          toast.error('Failed to load VIX futures data');
+          setShowVIXFutures(false);
         }
       } catch (error) {
         console.error('Error fetching VIX futures data:', error);
         toast.error('Failed to load VIX futures data');
+        setShowVIXFutures(false);
       }
     };
 
@@ -96,10 +104,34 @@ const Index = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main chart area */}
           <div className="lg:col-span-2 space-y-6">
-            <VIXChart data={historicalVIXData} />
+            {showVIXChart ? (
+              <VIXChart data={historicalVIXData} />
+            ) : (
+              <div className="bg-card rounded-lg border border-border p-6 flex flex-col items-center justify-center h-[300px]">
+                <p className="text-muted-foreground">Unable to load VIX historical data</p>
+                <button 
+                  onClick={() => window.location.reload()}
+                  className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
             
             {/* VIX Futures Chart */}
-            <VIXFuturesChart data={vixFuturesValues} />
+            {showVIXFutures ? (
+              <VIXFuturesChart data={vixFuturesValues} />
+            ) : (
+              <div className="bg-card rounded-lg border border-border p-6 flex flex-col items-center justify-center h-[300px]">
+                <p className="text-muted-foreground">Unable to load VIX futures data</p>
+                <button 
+                  onClick={() => window.location.reload()}
+                  className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
             
             {/* Stats row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
