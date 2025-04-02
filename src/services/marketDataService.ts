@@ -2,11 +2,21 @@
 import { toast } from "sonner";
 import { MarketIndex, MarketStatus, HistoricalData, SearchResult, FMPHistoricalData } from '@/types/marketData';
 import { generateFallbackData, generateAllFallbackData } from './fallbackDataService';
-import { fetchFMPQuote, fetchFMPHistoricalData, fetchFMPMarketStatus } from './fmpAPIService';
+import { fetchFMPQuote, fetchFMPHistoricalData, fetchFMPMarketStatus, fetchFMPAvailableIndices } from './fmpAPIService';
 import { transformFMPData } from './dataTransformService';
 
 // Export MarketIndex type for use in components
 export type { MarketIndex } from '@/types/marketData';
+
+// Fetch available market indices
+export const fetchAvailableIndices = async () => {
+  try {
+    return await fetchFMPAvailableIndices();
+  } catch (error) {
+    console.error('Error fetching available indices:', error);
+    return [];
+  }
+};
 
 // Fetch market indices data
 export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
@@ -34,11 +44,22 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
     const results: MarketIndex[] = [];
     let usedSomeFallback = false;
     
+    // Check which indices can be fetched based on API limitations
+    const freeApiLimitedToStocks = true; // Free FMP API is limited to US stocks only
+    
     for (const index of indices) {
       try {
         // Add delay between requests to avoid hitting rate limits
         if (results.length > 0) {
           await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        // Skip indices with "^" prefix if using free API that's limited to stocks
+        if (freeApiLimitedToStocks && index.symbol.startsWith('^')) {
+          console.warn(`Skipping ${index.name} due to free API limitation, using fallback`);
+          results.push(generateFallbackData(index.name));
+          usedSomeFallback = true;
+          continue;
         }
         
         // Fetch data from FMP API

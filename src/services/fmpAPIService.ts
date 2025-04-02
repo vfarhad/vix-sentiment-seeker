@@ -3,6 +3,28 @@ import { toast } from "sonner";
 import { FMP_API_URL, FMP_API_KEY } from '@/config/apiConfig';
 import { MarketStatus, FMPQuote, FMPHistoricalData } from '@/types/marketData';
 
+// Fetch available market indices from Financial Modeling Prep API
+export const fetchFMPAvailableIndices = async () => {
+  try {
+    const response = await fetch(
+      `${FMP_API_URL}/symbol/available-indexes?apikey=${FMP_API_KEY}`
+    );
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log("Available FMP indices:", data);
+    
+    return data;
+  } catch (error) {
+    console.error('Error fetching available indices:', error);
+    toast.error('Could not fetch available indices');
+    return [];
+  }
+};
+
 // Fetch quote data from Financial Modeling Prep API
 export const fetchFMPQuote = async (symbol: string): Promise<FMPQuote> => {
   try {

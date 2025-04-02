@@ -10,15 +10,28 @@ export const generateFallbackData = (indexName: string): MarketIndex => {
     indexName === "NASDAQ" ? 15000 + Math.random() * 1500 :
     indexName === "RUSSELL" ? 1900 + Math.random() * 200 :
     indexName === "AAPL" ? 160 + Math.random() * 40 :
-    15 + Math.random() * 15; // VIX
+    indexName === "^GSPC" ? 4800 + Math.random() * 400 :
+    indexName === "^DJI" ? 35000 + Math.random() * 3000 :
+    indexName === "^IXIC" ? 15000 + Math.random() * 1500 :
+    indexName === "^RUT" ? 1900 + Math.random() * 200 :
+    indexName === "^VIX" ? 15 + Math.random() * 15 :
+    indexName.includes("SPX") ? 4800 + Math.random() * 400 :
+    indexName.includes("VIX") ? 15 + Math.random() * 15 :
+    indexName.includes("DOW") ? 35000 + Math.random() * 3000 :
+    indexName.includes("NASDAQ") ? 15000 + Math.random() * 1500 :
+    indexName.includes("RUSSELL") ? 1900 + Math.random() * 200 :
+    100 + Math.random() * 50; // Default for unknown indices
   
-  const isPositive = isVIX ? Math.random() < 0.4 : Math.random() > 0.4; // VIX typically moves opposite to markets
+  const isPositive = isVIX || indexName.includes("VIX") || indexName === "^VIX" ? 
+    Math.random() < 0.4 : Math.random() > 0.4; // VIX typically moves opposite to markets
+  
   const changeValue = parseFloat((Math.random() * (isVIX ? 3 : 80)).toFixed(2));
   const changePercent = parseFloat((Math.random() * (isVIX ? 8 : 1.8)).toFixed(2));
   
   return {
     name: indexName,
-    value: isVIX ? baseValue.toFixed(2) : Math.floor(baseValue).toLocaleString(),
+    value: isVIX || indexName.includes("VIX") || indexName === "^VIX" ? 
+      baseValue.toFixed(2) : Math.floor(baseValue).toLocaleString(),
     change: (isPositive ? '+' : '-') + changeValue.toFixed(2),
     changePercent: (isPositive ? '+' : '-') + changePercent.toFixed(2) + '%'
   };
