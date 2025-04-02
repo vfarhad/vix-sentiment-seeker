@@ -58,6 +58,12 @@ export const marketIndices = [
     changePercent: '-0.28%'
   },
   {
+    name: 'NASDAQ',
+    value: '16,384.47',
+    change: '-58.16',
+    changePercent: '-0.35%'
+  },
+  {
     name: 'RUSSELL',
     value: '2,058.72',
     change: '-5.11',
