@@ -112,7 +112,7 @@ const VIXFuturesChart: React.FC<VIXFuturesChartProps> = ({ data }) => {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold mb-4">VIX Futures Curve</h2>
+        <h2 className="text-lg font-semibold mb-4">VIX Futures Term Structure</h2>
         <div className="h-[250px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={processedData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
@@ -148,7 +148,7 @@ const VIXFuturesChart: React.FC<VIXFuturesChartProps> = ({ data }) => {
       </div>
       
       <div>
-        <h2 className="text-lg font-semibold mb-4">Month-to-Month Changes</h2>
+        <h2 className="text-lg font-semibold mb-4">Month-to-Month Spreads</h2>
         <div className="h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={differenceData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>

@@ -8,10 +8,10 @@ export interface VIXFuturesDataPoint {
   value: number;
 }
 
-// Scrape VIX futures curve data from vixcentral.com
+// Scrape VIX futures term structure data from vixcentral.com
 export const scrapeVIXFutures = async (): Promise<VIXFuturesDataPoint[]> => {
   try {
-    console.log('Scraping VIX futures data from vixcentral.com');
+    console.log('Scraping VIX futures term structure from vixcentral.com');
     const response = await fetchWithProxy(VIX_URL);
     
     if (!response.ok) {
@@ -20,17 +20,14 @@ export const scrapeVIXFutures = async (): Promise<VIXFuturesDataPoint[]> => {
     
     const html = await response.text();
     
-    // Strategy 1: Look for JSON data in script tags (best approach if available)
-    const jsonDataPatterns = [
-      // Match any variable that might contain futures data
-      /var\s+(?:futuresData|contangoData|termData|vixData|curveData|vixFutures)\s*=\s*(\[.*?\]);/s,
-      // Match array assignments that might contain futures data
-      /(?:let|const|var)\s+[a-zA-Z_$][a-zA-Z0-9_$]*\s*=\s*(\[\s*{\s*['"]month['"]:\s*['"][^'"]+['"],\s*['"](?:value|price|close|y)['"]:\s*[\d.]+\s*}.*?\]);/s,
-      // Another common pattern
-      /data\s*:\s*(\[\s*{\s*['"](?:month|name|label)['"]:\s*['"][^'"]+['"],\s*['"](?:value|price|close|y)['"]:\s*[\d.]+\s*}.*?\])/s
+    // Strategy 1: Look for "vixFuturesCurve" array or similar term structure data
+    const termStructurePatterns = [
+      /var\s+(?:vixFuturesCurve|vixCurve|futuresCurve|termStructure|contangoData|futuresData|curve)\s*=\s*(\[.*?\]);/s,
+      /(?:let|const|var)\s+[a-zA-Z_$][a-zA-Z0-9_$]*\s*=\s*(\[\s*{\s*['"](?:contract|month|date|label)['"]:\s*['"][^'"]+['"],\s*['"](?:value|price|close|y|vix)['"]:\s*[\d.]+\s*}.*?\]);/s,
+      /data\s*:\s*(\[\s*{\s*['"](?:contract|month|date|label)['"]:\s*['"][^'"]+['"],\s*['"](?:value|price|close|y|vix)['"]:\s*[\d.]+\s*}.*?\])/s
     ];
     
-    for (const pattern of jsonDataPatterns) {
+    for (const pattern of termStructurePatterns) {
       const match = html.match(pattern);
       if (match && match[1]) {
         try {
@@ -41,9 +38,9 @@ export const scrapeVIXFutures = async (): Promise<VIXFuturesDataPoint[]> => {
           if (Array.isArray(parsedData) && parsedData.length > 0) {
             // Transform data to our expected format
             const futuresData = parsedData.map((item: any) => {
-              const month = item.month || item.name || item.label || '';
+              const month = item.contract || item.month || item.date || item.label || '';
               const value = typeof item.value === 'number' ? item.value : 
-                            parseFloat(item.y || item.close || item.price || 0);
+                            parseFloat(item.y || item.vix || item.close || item.price || 0);
               
               if (month && !isNaN(value)) {
                 return { month, value };
@@ -52,7 +49,7 @@ export const scrapeVIXFutures = async (): Promise<VIXFuturesDataPoint[]> => {
             }).filter(Boolean);
             
             if (futuresData.length >= 4) { // Need at least a few months to be valid
-              console.log('Successfully extracted VIX futures data from script JSON:', futuresData.slice(0, 2));
+              console.log('Successfully extracted VIX term structure data from JSON:', futuresData.slice(0, 2));
               
               // Add current VIX if not already present
               if (!futuresData.some(d => d.month === 'Current' || d.month.toLowerCase().includes('spot'))) {
@@ -69,72 +66,178 @@ export const scrapeVIXFutures = async (): Promise<VIXFuturesDataPoint[]> => {
             }
           }
         } catch (e) {
-          console.error('Error parsing futures JSON data:', e);
+          console.error('Error parsing term structure JSON data:', e);
           // Continue to next strategy if parsing fails
         }
       }
     }
     
-    // Strategy 2: Look for tables with numerical data
-    const tableRows = html.match(/<tr[^>]*>([\s\S]*?)<\/tr>/gi);
-    if (tableRows && tableRows.length) {
-      // First try to find a table that explicitly contains months
-      const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-      const futuresData: VIXFuturesDataPoint[] = [];
+    // Strategy 2: Look specifically for tables labeled as Term Structure
+    const termStructureHeaders = [
+      /term\s*structure/i,
+      /futures\s*curve/i,
+      /vix\s*curve/i,
+      /futures\s*term/i,
+      /contango/i
+    ];
+    
+    // Find sections that might contain term structure data
+    let termStructureSection = '';
+    for (const pattern of termStructureHeaders) {
+      // Look for headers or table captions with term structure terminology
+      const headerMatch = html.match(new RegExp(`<(?:h[1-6]|caption|th|div)[^>]*>.*?${pattern.source}.*?</(?:h[1-6]|caption|th|div)>`, 'i'));
       
-      // Process each table row
-      for (let i = 0; i < tableRows.length; i++) {
-        const row = tableRows[i];
-        const cellsText = row.match(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi);
+      if (headerMatch) {
+        // Find the next table or data section
+        const sectionStart = html.indexOf(headerMatch[0]);
+        if (sectionStart > 0) {
+          // Extract a large chunk after the header to analyze
+          termStructureSection = html.substring(sectionStart, sectionStart + 10000);
+          break;
+        }
+      }
+    }
+    
+    if (termStructureSection) {
+      // Extract tables from the term structure section
+      const tableMatch = termStructureSection.match(/<table[^>]*>([\s\S]*?)<\/table>/i);
+      
+      if (tableMatch) {
+        const tableContent = tableMatch[0];
+        const tableRows = tableContent.match(/<tr[^>]*>([\s\S]*?)<\/tr>/gi);
         
-        if (!cellsText || cellsText.length < 3) continue; // Need multiple cells
-        
-        // Check if this is a header row containing month names
-        const cells = cellsText.map(cell => cell.replace(/<[^>]+>/g, '').trim().toLowerCase());
-        const monthIndices: number[] = [];
-        
-        cells.forEach((cell, index) => {
-          // Check if the cell contains a month name
-          if (monthNames.some(month => cell.includes(month))) {
-            monthIndices.push(index);
-          }
-        });
-        
-        // If we found month names, extract values from the next row
-        if (monthIndices.length >= 3) {
-          // Get the months from this row
-          const months = monthIndices.map(idx => cells[idx]);
+        if (tableRows && tableRows.length > 1) {
+          // First row is likely header with month names
+          const headerRow = tableRows[0];
+          const headerCells = headerRow.match(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi);
           
-          // Look for a data row in the next few rows
-          for (let j = i + 1; j < Math.min(i + 4, tableRows.length); j++) {
-            const valueRow = tableRows[j];
-            const valueCells = valueRow.match(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi);
+          if (headerCells) {
+            const headers = headerCells.map(cell => {
+              // Clean the cell content
+              return cell.replace(/<[^>]+>/g, '').trim();
+            });
             
-            if (!valueCells || valueCells.length < monthIndices.length) continue;
+            // Look for month names or date patterns in headers
+            const monthIndices: number[] = [];
+            const monthNames: string[] = [];
             
-            // Extract values and check if they're numeric
-            const values = valueCells.map(cell => {
+            headers.forEach((header, index) => {
+              // Match month names (Jan, Feb), date formats, or F1, F2 (futures notation)
+              if (/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{1,2}\/\d{1,2}|f\d)/i.test(header)) {
+                monthIndices.push(index);
+                monthNames.push(header);
+              }
+            });
+            
+            if (monthIndices.length >= 4) { // Need at least a few months
+              // Look for data rows (skip header)
+              for (let i = 1; i < tableRows.length; i++) {
+                const dataRow = tableRows[i];
+                
+                // Check if this row contains "VIX" or "Term" or "Futures"
+                if (/vix|term|futures|spot|price/i.test(dataRow)) {
+                  const dataCells = dataRow.match(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi);
+                  
+                  if (dataCells) {
+                    const values = dataCells.map(cell => {
+                      const text = cell.replace(/<[^>]+>/g, '').trim();
+                      return text.match(/^[\d.]+$/) ? parseFloat(text) : null;
+                    });
+                    
+                    // Check if we have values for the month indices
+                    const futuresData: VIXFuturesDataPoint[] = [];
+                    let hasValidData = false;
+                    
+                    monthIndices.forEach((idx, i) => {
+                      if (idx < values.length && values[idx] !== null) {
+                        futuresData.push({
+                          month: monthNames[i],
+                          value: values[idx] as number
+                        });
+                        hasValidData = true;
+                      }
+                    });
+                    
+                    if (hasValidData && futuresData.length >= 4) {
+                      console.log('Successfully extracted VIX term structure data from table:', futuresData.slice(0, 2));
+                      
+                      // Add current VIX if not present
+                      if (!futuresData.some(d => d.month.toLowerCase() === 'current' || d.month.toLowerCase().includes('spot'))) {
+                        const currentVIX = await scrapeCurrentVIX();
+                        if (currentVIX) {
+                          futuresData.unshift({
+                            month: 'Current',
+                            value: parseFloat(currentVIX.value)
+                          });
+                        }
+                      }
+                      
+                      return futuresData;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Strategy 3: Use a more general approach to find any tables with numeric data
+    const tableRows = html.match(/<tr[^>]*>([\s\S]*?)<\/tr>/gi);
+    if (tableRows && tableRows.length > 5) {
+      // Find rows with labels like months or futures contracts
+      for (let i = 0; i < tableRows.length; i++) {
+        const headerRow = tableRows[i];
+        const headerCells = headerRow.match(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi);
+        
+        if (!headerCells || headerCells.length < 4) continue;
+        
+        const headers = headerCells.map(cell => cell.replace(/<[^>]+>/g, '').trim());
+        
+        // Check if headers look like month names or futures contracts (M1, F1, etc.)
+        const monthRegex = /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{1,2}\/\d{1,2}|f\d|m\d)/i;
+        const possibleMonthIndices = headers.map((header, idx) => 
+          monthRegex.test(header) ? idx : -1
+        ).filter(idx => idx !== -1);
+        
+        if (possibleMonthIndices.length >= 4) {
+          // This could be a month header row, look for data in next rows
+          const futuresData: VIXFuturesDataPoint[] = [];
+          
+          // Process the next few rows to find value data
+          for (let j = i + 1; j < Math.min(i + 5, tableRows.length); j++) {
+            const dataRow = tableRows[j];
+            const dataCells = dataRow.match(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi);
+            
+            if (!dataCells || dataCells.length <= possibleMonthIndices.length) continue;
+            
+            const values = dataCells.map(cell => {
               const text = cell.replace(/<[^>]+>/g, '').trim();
               return text.match(/^[\d.]+$/) ? parseFloat(text) : null;
             });
             
-            // Check if we have numeric values in positions corresponding to months
-            const hasValues = monthIndices.every(idx => idx < values.length && values[idx] !== null);
-            
-            if (hasValues) {
-              // We found a valid data row, extract month-value pairs
-              monthIndices.forEach(idx => {
-                if (cells[idx] && values[idx] !== null) {
-                  // Capitalize first letter of month
-                  const month = cells[idx].charAt(0).toUpperCase() + cells[idx].slice(1);
-                  futuresData.push({ month, value: values[idx] as number });
+            // Check if this row contains VIX-related data
+            if (dataRow.toLowerCase().includes('vix') || 
+                dataRow.toLowerCase().includes('price') || 
+                dataRow.toLowerCase().includes('value')) {
+              
+              let hasValidData = false;
+              
+              possibleMonthIndices.forEach(idx => {
+                if (idx < values.length && values[idx] !== null) {
+                  futuresData.push({
+                    month: headers[idx],
+                    value: values[idx] as number
+                  });
+                  hasValidData = true;
                 }
               });
               
-              if (futuresData.length >= 3) {
-                console.log('Successfully extracted VIX futures data from table:', futuresData.slice(0, 2));
+              if (hasValidData && futuresData.length >= 4) {
+                console.log('Successfully extracted possible VIX term structure data:', futuresData.slice(0, 2));
                 
-                // Add current VIX if not already present
+                // Add current VIX if not present
                 if (!futuresData.some(d => d.month.toLowerCase() === 'current' || d.month.toLowerCase().includes('spot'))) {
                   const currentVIX = await scrapeCurrentVIX();
                   if (currentVIX) {
@@ -153,132 +256,18 @@ export const scrapeVIXFutures = async (): Promise<VIXFuturesDataPoint[]> => {
       }
     }
     
-    // Strategy 3: Look for a table with just numbers and assume it's the futures curve
-    // This is a last-resort approach
-    if (tableRows && tableRows.length > 5) {
-      const potentialFuturesTables: VIXFuturesDataPoint[][] = [];
-      
-      for (let i = 0; i < tableRows.length - 1; i++) {
-        const row = tableRows[i];
-        
-        // Check if this row contains terms like "futures", "term structure", "vix curve"
-        if (row.toLowerCase().includes('futures') || 
-            row.toLowerCase().includes('term') || 
-            row.toLowerCase().includes('curve') ||
-            row.toLowerCase().includes('contango')) {
-          
-          // Look at the next few rows for potential data
-          for (let j = i + 1; j < Math.min(i + 10, tableRows.length); j++) {
-            const dataRow = tableRows[j];
-            const cells = dataRow.match(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi);
-            
-            if (!cells || cells.length < 4) continue;
-            
-            // Extract text and check for numbers
-            const cellValues = cells.map(cell => {
-              const text = cell.replace(/<[^>]+>/g, '').trim();
-              return text.match(/^[\d.]+$/) ? parseFloat(text) : text;
-            });
-            
-            // Count numeric values
-            const numericCount = cellValues.filter(v => typeof v === 'number').length;
-            
-            // If at least half are numeric, this might be a data row
-            if (numericCount >= cellValues.length / 2) {
-              const tableData: VIXFuturesDataPoint[] = [];
-              
-              // First try to find month names
-              const months: string[] = [];
-              let foundMonths = false;
-              
-              // Look for month names in the previous row
-              if (j > 0) {
-                const prevRow = tableRows[j - 1];
-                const headerCells = prevRow.match(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi);
-                
-                if (headerCells && headerCells.length >= numericCount) {
-                  const headerTexts = headerCells.map(cell => cell.replace(/<[^>]+>/g, '').trim());
-                  
-                  // Check if any look like month names or dates
-                  const monthRegex = /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{1,2}\/\d{1,2}|\d{4}-\d{2}-\d{2})/i;
-                  if (headerTexts.some(text => monthRegex.test(text))) {
-                    headerTexts.forEach(text => {
-                      if (monthRegex.test(text)) {
-                        months.push(text);
-                        foundMonths = true;
-                      }
-                    });
-                  }
-                }
-              }
-              
-              // If we didn't find month names, generate them
-              if (!foundMonths) {
-                // Use ordinal month names: M1, M2, etc.
-                for (let m = 0; m < numericCount; m++) {
-                  months.push(`M${m + 1}`);
-                }
-              }
-              
-              // Create data points from numeric values
-              let monthIndex = 0;
-              for (let k = 0; k < cellValues.length; k++) {
-                if (typeof cellValues[k] === 'number') {
-                  if (monthIndex < months.length) {
-                    tableData.push({
-                      month: months[monthIndex],
-                      value: cellValues[k] as number
-                    });
-                    monthIndex++;
-                  }
-                }
-              }
-              
-              if (tableData.length >= 4) {
-                potentialFuturesTables.push(tableData);
-              }
-            }
-          }
-        }
-      }
-      
-      // Choose the table with the most data points
-      if (potentialFuturesTables.length > 0) {
-        const bestTable = potentialFuturesTables.reduce((prev, current) => 
-          current.length > prev.length ? current : prev
-        );
-        
-        if (bestTable.length >= 4) {
-          console.log('Found possible VIX futures table data:', bestTable.slice(0, 2));
-          
-          // Add current VIX if not already present
-          if (!bestTable.some(d => d.month === 'Current' || d.month.toLowerCase().includes('spot'))) {
-            const currentVIX = await scrapeCurrentVIX();
-            if (currentVIX) {
-              bestTable.unshift({
-                month: 'Current',
-                value: parseFloat(currentVIX.value)
-              });
-            }
-          }
-          
-          return bestTable;
-        }
-      }
-    }
-    
     // Strategy 4: Generate realistic mock data as a last resort
-    console.log('Could not extract VIX futures data, generating realistic mock data');
-    return generateRealisticMockFuturesData();
+    console.log('Could not extract VIX term structure data, generating realistic mock data');
+    return generateRealisticTermStructure();
   } catch (error) {
-    console.error('Error scraping VIX futures data:', error);
+    console.error('Error scraping VIX term structure data:', error);
     toast.error('Error loading VIX futures data');
-    return generateRealisticMockFuturesData();
+    return generateRealisticTermStructure();
   }
 };
 
-// Helper function to generate realistic mock VIX futures data
-const generateRealisticMockFuturesData = async (): Promise<VIXFuturesDataPoint[]> => {
+// Helper function to generate realistic VIX term structure (contango or backwardation)
+const generateRealisticTermStructure = async (): Promise<VIXFuturesDataPoint[]> => {
   const mockData: VIXFuturesDataPoint[] = [];
   let baseValue: number;
   
@@ -302,15 +291,25 @@ const generateRealisticMockFuturesData = async (): Promise<VIXFuturesDataPoint[]
   const currentMonth = now.getMonth();
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   
-  // Generate futures for the next 7 months with a realistic contango curve
+  // Determine if we should generate contango or backwardation
+  // Historical tendency is for VIX futures to be in contango (upward sloping)
+  // But sometimes during market stress, it can be in backwardation
+  const inContango = Math.random() < 0.75; // 75% chance of contango
+  
+  // Factor to multiply by for each month out - creates curve
+  const factorPerMonth = inContango ? 0.04 + Math.random() * 0.05 : -0.04 - Math.random() * 0.03;
+  
+  // Generate futures for the next 7 months with a realistic curve
   for (let i = 1; i <= 7; i++) {
     const futureMonth = (currentMonth + i) % 12;
     const monthName = monthNames[futureMonth];
     
-    // Realistic contango - slight increase for near months, more for far months
-    // Add some randomness to make it look more realistic
-    const contangoFactor = Math.min(0.5, i * 0.08 + Math.random() * 0.1);
-    const value = baseValue + baseValue * contangoFactor;
+    // Apply curve factor with some randomness
+    const randomNoise = (Math.random() * 0.02) - 0.01; // Small random factor between -0.01 and 0.01
+    const cumulativeFactor = i * factorPerMonth + randomNoise;
+    
+    // Realistic curve - percentage change from base value
+    const value = baseValue * (1 + cumulativeFactor);
     
     mockData.push({
       month: monthName,
