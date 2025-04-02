@@ -145,8 +145,8 @@ const VIXFuturesChart: React.FC<VIXFuturesChartProps> = ({ data }) => {
               <Bar 
                 dataKey="difference" 
                 radius={[4, 4, 0, 0]}
-                fill={(data) => {
-                  return getDifferenceColor(data.difference);
+                fill={(entry) => {
+                  return entry.difference >= 0 ? "#EF4444" : "#10B981";
                 }}
               />
             </BarChart>

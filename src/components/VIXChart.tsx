@@ -129,19 +129,18 @@ const VIXChart = ({ data, className }: VIXChartProps) => {
             <Line
               type="monotone"
               dataKey="value"
-              stroke={(props) => {
-                const { value } = props.payload;
-                return getFillColor(value);
-              }}
               strokeWidth={2}
+              stroke="#3B82F6"
               dot={(props) => {
-                const { cx, cy, value } = props;
+                const { cx, cy, payload } = props;
+                const value = payload.value;
+                const color = getFillColor(value);
                 return (
                   <circle 
                     cx={cx} 
                     cy={cy} 
                     r={4} 
-                    stroke={getFillColor(value)}
+                    stroke={color}
                     strokeWidth={2}
                     fill="#0F172A"
                   />
