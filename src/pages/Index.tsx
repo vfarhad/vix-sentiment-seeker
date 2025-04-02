@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import MarketBanner from '@/components/MarketBanner';
@@ -7,7 +6,7 @@ import VIXFuturesChart from '@/components/VIXFuturesChart';
 import SentimentIndicator from '@/components/SentimentIndicator';
 import StatisticCard from '@/components/StatisticCard';
 import MarketStatusBox from '@/components/MarketStatusBox';
-import { vixHistoricalData, marketSentiment, vixStatistics, marketHeadlines } from '@/lib/mockData';
+import { vixStatistics, marketSentiment, marketHeadlines } from '@/lib/mockData';
 import { fetchMarketIndices, setupMarketDataPolling, MarketIndex } from '@/services/marketDataService';
 import { scrapeHistoricalVIX, scrapeVIXFutures, VIXHistoricalDataPoint, VIXFuturesDataPoint } from '@/services/vixScraperService';
 import { useQuery } from '@tanstack/react-query';
