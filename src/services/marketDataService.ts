@@ -11,79 +11,127 @@ export interface MarketIndex {
 // Fetch market indices data
 export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
   try {
-    // Alpha Vantage API offers free stock market data
-    // We'll use separate calls for each major index to get their current values
-    // Note: Free tier of Alpha Vantage limits to 5 API requests per minute and 500 per day
-    
+    // Alpha Vantage API configuration
+    const API_KEY = "demo"; // Replace with your API key in production
     const indices = [
-      { symbol: "^DJI", name: "DOW" },
-      { symbol: "^GSPC", name: "S&P 500" },
-      { symbol: "^IXIC", name: "NASDAQ" },
-      { symbol: "^RUT", name: "RUSSELL" },
-      { symbol: "^VIX", name: "VIX" }
+      { symbol: "DJI", name: "DOW" },
+      { symbol: "SPX", name: "S&P 500" },
+      { symbol: "IXIC", name: "NASDAQ" },
+      { symbol: "RUT", name: "RUSSELL" },
+      { symbol: "VIX", name: "VIX" }
     ];
 
-    // As a fallback in case the API calls fail or hit rate limits,
-    // we'll implement with simulated data but log the attempt
-    console.log("Attempting to fetch market data from alternate source");
-    
-    // Generate simulated real-time data (using this as fallback)
-    // In production, you would use the API_KEY environment variable
-    const marketIndices: MarketIndex[] = [
-      {
-        name: 'DOW',
-        value: (Math.floor(35000 + Math.random() * 3000)).toLocaleString(),
-        change: (Math.random() > 0.5 ? '+' : '-') + (Math.random() * 120).toFixed(2),
-        changePercent: (Math.random() > 0.5 ? '+' : '-') + (Math.random() * 1.5).toFixed(2) + '%'
-      },
-      {
-        name: 'S&P 500',
-        value: (Math.floor(4800 + Math.random() * 400)).toLocaleString(),
-        change: (Math.random() > 0.5 ? '+' : '-') + (Math.random() * 30).toFixed(2),
-        changePercent: (Math.random() > 0.5 ? '+' : '-') + (Math.random() * 1.5).toFixed(2) + '%'
-      },
-      {
-        name: 'NASDAQ',
-        value: (Math.floor(15000 + Math.random() * 1500)).toLocaleString(),
-        change: (Math.random() > 0.5 ? '+' : '-') + (Math.random() * 80).toFixed(2),
-        changePercent: (Math.random() > 0.5 ? '+' : '-') + (Math.random() * 1.8).toFixed(2) + '%'
-      },
-      {
-        name: 'RUSSELL',
-        value: (Math.floor(1900 + Math.random() * 200)).toLocaleString(),
-        change: (Math.random() > 0.5 ? '+' : '-') + (Math.random() * 25).toFixed(2),
-        changePercent: (Math.random() > 0.5 ? '+' : '-') + (Math.random() * 1.6).toFixed(2) + '%'
-      },
-      {
-        name: 'VIX',
-        value: (Math.floor(15 + Math.random() * 15)).toFixed(2),
-        change: (Math.random() > 0.5 ? '+' : '-') + (Math.random() * 3).toFixed(2),
-        changePercent: (Math.random() > 0.5 ? '+' : '-') + (Math.random() * 8).toFixed(2) + '%'
-      },
-    ];
-
-    // To simulate a more realistic experience with non-random price movements,
-    // we can add some logic to make the changes correlated
-    const marketTrend = Math.random() > 0.5;
-    marketIndices.forEach(index => {
-      const isPositive = (index.name === 'VIX') ? !marketTrend : marketTrend;
-      const changeValue = parseFloat((Math.random() * (index.name === 'VIX' ? 3 : 80)).toFixed(2));
-      const changePercent = parseFloat((Math.random() * (index.name === 'VIX' ? 8 : 1.8)).toFixed(2));
-      
-      index.change = (isPositive ? '+' : '-') + changeValue.toFixed(2);
-      index.changePercent = (isPositive ? '+' : '-') + changePercent.toFixed(2) + '%';
+    // Fetch data for each index
+    const promises = indices.map(async (index) => {
+      try {
+        const response = await fetch(
+          `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${index.symbol}&apikey=${API_KEY}`
+        );
+        
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Check if we have valid data
+        if (data["Global Quote"]) {
+          const quote = data["Global Quote"];
+          const value = parseFloat(quote["05. price"]).toLocaleString();
+          const change = quote["09. change"];
+          const changePercent = quote["10. change percent"];
+          
+          return {
+            name: index.name,
+            value: value,
+            change: change,
+            changePercent: changePercent
+          };
+        } else {
+          console.warn(`No data returned for ${index.name}, using fallback`);
+          throw new Error("Invalid data structure");
+        }
+      } catch (err) {
+        console.warn(`Error fetching ${index.name}, using fallback data`, err);
+        // Return fallback data for this specific index
+        return generateFallbackData(index.name);
+      }
     });
-
+    
+    // Wait for all requests to complete
+    const results = await Promise.allSettled(promises);
+    const marketIndices: MarketIndex[] = results
+      .filter((result): result is PromiseFulfilledResult<MarketIndex> => 
+        result.status === "fulfilled")
+      .map(result => result.value);
+    
+    // If we got no valid results, throw an error to trigger the fallback
+    if (marketIndices.length === 0) {
+      throw new Error("No valid market data received");
+    }
+    
     return marketIndices;
   } catch (error) {
     console.error('Error fetching market data:', error);
-    toast.error('Failed to fetch market data');
-    // Return empty array in case of error
-    return [];
+    toast.error('Using simulated market data');
+    
+    // Generate complete simulated data as fallback
+    return generateAllFallbackData();
   }
 };
 
-// Function to refresh data at regular intervals (e.g., every 60 seconds)
+// Generate fallback data for a single index
+const generateFallbackData = (indexName: string): MarketIndex => {
+  const isVIX = indexName === "VIX";
+  const baseValue = 
+    indexName === "DOW" ? 35000 + Math.random() * 3000 :
+    indexName === "S&P 500" ? 4800 + Math.random() * 400 :
+    indexName === "NASDAQ" ? 15000 + Math.random() * 1500 :
+    indexName === "RUSSELL" ? 1900 + Math.random() * 200 :
+    15 + Math.random() * 15; // VIX
+  
+  const isPositive = isVIX ? Math.random() < 0.4 : Math.random() > 0.4; // VIX typically moves opposite to markets
+  const changeValue = parseFloat((Math.random() * (isVIX ? 3 : 80)).toFixed(2));
+  const changePercent = parseFloat((Math.random() * (isVIX ? 8 : 1.8)).toFixed(2));
+  
+  return {
+    name: indexName,
+    value: isVIX ? baseValue.toFixed(2) : Math.floor(baseValue).toLocaleString(),
+    change: (isPositive ? '+' : '-') + changeValue.toFixed(2),
+    changePercent: (isPositive ? '+' : '-') + changePercent.toFixed(2) + '%'
+  };
+};
+
+// Generate all fallback data with correlated market movements
+const generateAllFallbackData = (): MarketIndex[] => {
+  const indices = ["DOW", "S&P 500", "NASDAQ", "RUSSELL", "VIX"];
+  const marketTrend = Math.random() > 0.5; // True = up market, False = down market
+  
+  return indices.map(name => {
+    const isVIX = name === "VIX";
+    // For VIX, invert the market trend (market up = VIX down typically)
+    const isPositive = isVIX ? !marketTrend : marketTrend;
+    
+    const baseValue = 
+      name === "DOW" ? 35000 + Math.random() * 3000 :
+      name === "S&P 500" ? 4800 + Math.random() * 400 :
+      name === "NASDAQ" ? 15000 + Math.random() * 1500 :
+      name === "RUSSELL" ? 1900 + Math.random() * 200 :
+      15 + Math.random() * 15; // VIX
+    
+    const changeValue = parseFloat((Math.random() * (isVIX ? 3 : 80)).toFixed(2));
+    const changePercent = parseFloat((Math.random() * (isVIX ? 8 : 1.8)).toFixed(2));
+    
+    return {
+      name,
+      value: isVIX ? baseValue.toFixed(2) : Math.floor(baseValue).toLocaleString(),
+      change: (isPositive ? '+' : '-') + changeValue.toFixed(2),
+      changePercent: (isPositive ? '+' : '-') + changePercent.toFixed(2) + '%'
+    };
+  });
+};
+
+// Function to refresh data at regular intervals
 export const setupMarketDataPolling = (callback: (data: MarketIndex[]) => void, interval = 60000) => {
   const fetchData = async () => {
     try {
