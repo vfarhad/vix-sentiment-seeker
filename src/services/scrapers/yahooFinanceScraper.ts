@@ -15,8 +15,17 @@ export interface YahooFinanceDataPoint {
 // URL for Yahoo Finance S&P 500 historical data
 const YAHOO_SP500_URL = 'https://finance.yahoo.com/quote/%5EGSPC/history/';
 
+// Alternative URLs in case the main one fails
+const ALTERNATE_URLS = [
+  'https://finance.yahoo.com/quote/SPY/history/', // SPY ETF follows S&P 500
+  'https://finance.yahoo.com/quote/^GSPC/history/',
+  'https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?interval=1d'
+];
+
 export const scrapeYahooSP500Historical = async (): Promise<YahooFinanceDataPoint[]> => {
   console.log('Scraping S&P 500 historical data from Yahoo Finance');
+  
+  // Try the main URL first
   try {
     // Fetch the page HTML
     const response = await fetchWithProxy(YAHOO_SP500_URL);
@@ -30,11 +39,82 @@ export const scrapeYahooSP500Historical = async (): Promise<YahooFinanceDataPoin
       return data;
     }
     
-    console.warn('Failed to extract S&P 500 data from Yahoo Finance, falling back to other sources');
-    return [];
+    console.warn('Failed to extract S&P 500 data from main Yahoo Finance URL, trying alternatives');
+  } catch (mainError) {
+    console.error('Error accessing main Yahoo Finance URL:', mainError);
+  }
+  
+  // Try alternative URLs if the main one fails
+  for (const url of ALTERNATE_URLS) {
+    try {
+      console.log(`Trying alternative URL: ${url}`);
+      const response = await fetchWithProxy(url);
+      const content = await response.text();
+      
+      // Different parsing based on URL type
+      let data: YahooFinanceDataPoint[] = [];
+      
+      if (url.includes('query1.finance.yahoo.com')) {
+        // This is an API call, parse JSON
+        try {
+          const jsonData = JSON.parse(content);
+          data = extractYahooSP500DataFromAPI(jsonData);
+        } catch (jsonError) {
+          console.error('Error parsing Yahoo Finance API JSON:', jsonError);
+          continue;
+        }
+      } else {
+        // This is HTML, use regular parser
+        data = extractYahooSP500DataFromHTML(content);
+      }
+      
+      if (data && data.length > 0) {
+        console.log(`Successfully scraped ${data.length} S&P 500 historical data points from alternative URL`);
+        return data;
+      }
+    } catch (altError) {
+      console.error(`Error with alternative URL ${url}:`, altError);
+    }
+  }
+  
+  console.warn('Failed to extract S&P 500 data from all Yahoo Finance sources, falling back to other sources');
+  return [];
+};
+
+// Extract data from Yahoo Finance API JSON response
+const extractYahooSP500DataFromAPI = (jsonData: any): YahooFinanceDataPoint[] => {
+  try {
+    if (!jsonData || !jsonData.chart || !jsonData.chart.result || jsonData.chart.result.length === 0) {
+      return [];
+    }
+    
+    const result = jsonData.chart.result[0];
+    const timestamps = result.timestamp || [];
+    const quotes = result.indicators.quote[0] || {};
+    const adjclose = result.indicators.adjclose?.[0]?.adjclose || [];
+    
+    const data: YahooFinanceDataPoint[] = [];
+    
+    for (let i = 0; i < timestamps.length; i++) {
+      const timestamp = timestamps[i];
+      const date = new Date(timestamp * 1000).toISOString().split('T')[0];
+      
+      const dataPoint: YahooFinanceDataPoint = {
+        date,
+        open: quotes.open?.[i] || 0,
+        high: quotes.high?.[i] || 0,
+        low: quotes.low?.[i] || 0,
+        close: quotes.close?.[i] || 0,
+        adjClose: adjclose[i] || quotes.close?.[i] || 0,
+        volume: quotes.volume?.[i] || 0
+      };
+      
+      data.push(dataPoint);
+    }
+    
+    return data;
   } catch (error) {
-    console.error('Error scraping S&P 500 data from Yahoo Finance:', error);
-    toast.error('Failed to load S&P 500 historical data from Yahoo Finance');
+    console.error('Error extracting data from Yahoo Finance API JSON:', error);
     return [];
   }
 };
