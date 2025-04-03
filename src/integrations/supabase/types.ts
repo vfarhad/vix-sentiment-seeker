@@ -57,6 +57,51 @@ export type Database = {
         }
         Relationships: []
       }
+      vix_term_structure: {
+        Row: {
+          calculation_date: string
+          created_at: string | null
+          days_to_expiration: number | null
+          forward_end_date: string | null
+          forward_start_date: string | null
+          id: number
+          is_constant_maturity: boolean | null
+          is_contango: boolean | null
+          is_implied_forward: boolean | null
+          maturity_days: number | null
+          month: string
+          value: number
+        }
+        Insert: {
+          calculation_date: string
+          created_at?: string | null
+          days_to_expiration?: number | null
+          forward_end_date?: string | null
+          forward_start_date?: string | null
+          id?: number
+          is_constant_maturity?: boolean | null
+          is_contango?: boolean | null
+          is_implied_forward?: boolean | null
+          maturity_days?: number | null
+          month: string
+          value: number
+        }
+        Update: {
+          calculation_date?: string
+          created_at?: string | null
+          days_to_expiration?: number | null
+          forward_end_date?: string | null
+          forward_start_date?: string | null
+          id?: number
+          is_constant_maturity?: boolean | null
+          is_contango?: boolean | null
+          is_implied_forward?: boolean | null
+          maturity_days?: number | null
+          month?: string
+          value?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

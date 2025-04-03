@@ -1,415 +1,307 @@
 
-import React from 'react';
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  LineChart,
-  Line,
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  ReferenceLine,
-  Legend,
-  ComposedChart,
-  Area,
-  Scatter,
-  ScatterChart
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
+  ResponsiveContainer, Legend, BarChart, Bar, ReferenceLine
 } from 'recharts';
-import { 
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { VIXTermStructurePoint } from '@/services/sp500DataService';
-
-interface VIXFuturesData {
-  month: string;
-  value: number;
-  volume?: number;
-  openInterest?: number;
-  isImpliedForward?: boolean;
-  isConstantMaturity?: boolean;
-  daysToExpiration?: number;
-}
+import { Info, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface VIXFuturesChartProps {
-  data: VIXFuturesData[];
-  volumeData?: {date: string, volume: number, openInterest: number}[];
+  data: {
+    month: string;
+    value: number;
+    daysToExpiration?: number;
+    isContango?: boolean;
+    isImpliedForward?: boolean;
+    isConstantMaturity?: boolean;
+    forwardStartDate?: string;
+    forwardEndDate?: string;
+    maturityDays?: number;
+  }[];
+  volumeData?: any[];
 }
 
-const VIXFuturesChart: React.FC<VIXFuturesChartProps> = ({ data, volumeData }) => {
-  // Separate regular data points from special calculations
-  const regularPoints = data.filter(item => !item.isImpliedForward && !item.isConstantMaturity);
-  const impliedForwardPoints = data.filter(item => item.isImpliedForward);
-  const constantMaturityPoints = data.filter(item => item.isConstantMaturity);
+const VIXFuturesChart = ({ data, volumeData }: VIXFuturesChartProps) => {
+  const [view, setView] = useState<'futures' | 'volume' | 'explain'>('futures');
   
-  // Calculate the average of all futures values (excluding special calculations)
-  const averageFuture = regularPoints.reduce((sum, item) => sum + item.value, 0) / regularPoints.length;
-  
-  // Find the minimum and maximum values for Y-axis scaling
-  const allValues = data.map(item => item.value);
-  const minValue = Math.min(...allValues);
-  const maxValue = Math.max(...allValues);
-  
-  // Define Y-axis domain from (min - 1) to (max + 1)
-  const yAxisDomain = [Math.floor(minValue - 1), Math.ceil(maxValue + 1)];
-  
-  // Process data to include month-to-month differences and contango
-  const processedData = regularPoints.map((item, index) => {
-    // Calculate month-to-month difference
-    const difference = index > 0 ? item.value - regularPoints[index - 1].value : 0;
-    
-    // Calculate contango (whether future value is higher than current)
-    const contango = index > 0 && item.value > regularPoints[0].value;
-    
-    return {
-      ...item,
-      difference,
-      contango
-    };
-  });
+  if (!data || data.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>VIX Term Structure</CardTitle>
+        </CardHeader>
+        <CardContent className="h-[300px] flex items-center justify-center">
+          <p className="text-muted-foreground">No VIX futures data available</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
-  // Skip the current month for difference chart (it has no previous month to compare)
-  const differenceData = processedData.slice(1);
+  // Separate regular futures from implied forwards and constant maturities
+  const futuresData = data.filter(d => !d.isImpliedForward && !d.isConstantMaturity);
+  const impliedForwards = data.filter(d => d.isImpliedForward);
+  const constantMaturities = data.filter(d => d.isConstantMaturity);
   
-  // Custom tooltip for the futures chart
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-card p-3 border border-border rounded shadow-md">
-          <p className="text-sm font-medium">{label}</p>
-          <p className="text-sm text-primary">
-            <span className="font-medium">VIX: </span> 
-            {payload[0].value.toFixed(2)}
-          </p>
-          {payload[0].payload.daysToExpiration !== undefined && (
-            <p className="text-sm text-muted-foreground">
-              <span className="font-medium">Days to Exp: </span>
-              {payload[0].payload.daysToExpiration}
-            </p>
-          )}
-          {payload[0].payload.difference !== undefined && (
-            <p className={`text-sm ${payload[0].payload.difference >= 0 ? 'text-negative' : 'text-positive'}`}>
-              <span className="font-medium">Change: </span>
-              {payload[0].payload.difference > 0 ? '+' : ''}
-              {payload[0].payload.difference.toFixed(2)}
-            </p>
-          )}
-          {payload[0].payload.contango !== undefined && payload[0].payload.month !== 'Current' && (
-            <p className={`text-sm ${payload[0].payload.contango ? 'text-negative' : 'text-positive'}`}>
-              <span className="font-medium">
-                {payload[0].payload.contango ? 'Contango' : 'Backwardation'}
-              </span>
-            </p>
-          )}
-          {payload[0].payload.isConstantMaturity && (
-            <p className="text-sm text-amber-500">
-              <span className="font-medium">Constant Maturity VIX</span>
-            </p>
-          )}
-          {payload[0].payload.isImpliedForward && (
-            <p className="text-sm text-purple-500">
-              <span className="font-medium">Implied Forward VIX</span>
-            </p>
-          )}
-        </div>
-      );
-    }
-    return null;
-  };
-
-  // Custom tooltip for the difference chart
-  const DifferenceTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-card p-3 border border-border rounded shadow-md">
-          <p className="text-sm font-medium">{label}</p>
-          <p className={`text-sm ${payload[0].value >= 0 ? 'text-negative' : 'text-positive'}`}>
-            <span className="font-medium">Diff: </span>
-            {payload[0].value > 0 ? '+' : ''}
-            {payload[0].value.toFixed(2)}
-          </p>
-          <p className={`text-sm ${payload[0].payload.contango ? 'text-negative' : 'text-positive'}`}>
-            <span className="font-medium">
-              {payload[0].payload.contango ? 'Contango' : 'Backwardation'}
-            </span>
-          </p>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  // Volume data tooltip
-  const VolumeTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length > 0) {
-      return (
-        <div className="bg-card p-3 border border-border rounded shadow-md">
-          <p className="text-sm font-medium">{label}</p>
-          {payload[0] && (
-            <p className="text-sm text-primary">
-              <span className="font-medium">Volume: </span> 
-              {payload[0].value.toLocaleString()}
-            </p>
-          )}
-          {payload[1] && (
-            <p className="text-sm text-secondary">
-              <span className="font-medium">Open Interest: </span> 
-              {payload[1].value.toLocaleString()}
-            </p>
-          )}
-        </div>
-      );
-    }
-    return null;
-  };
-
-  // Get color based on the difference value
-  const getDifferenceColor = (difference: number) => {
-    return difference >= 0 ? "#EF4444" : "#10B981";
-  };
+  // Get spot VIX value (first item in futures data is typically current/spot)
+  const spotVIX = futuresData.length > 0 ? futuresData[0].value : null;
   
-  // Determine if we are generally in contango or backwardation
-  const marketRegime = regularPoints.length > 1 && regularPoints[regularPoints.length - 1].value > regularPoints[0].value 
-    ? "Contango (Upward Sloping)" 
-    : "Backwardation (Downward Sloping)";
+  // Determine if the overall curve is in contango or backwardation
+  // (comparing first and last regular futures contracts)
+  const isContango = futuresData.length >= 2 && 
+    futuresData[futuresData.length - 1].value > futuresData[0].value;
 
-  const marketRegimeColor = marketRegime.includes("Contango") ? "text-negative" : "text-positive";
+  // Prepare data for display
+  const chartData = futuresData.map(item => ({
+    name: item.daysToExpiration ? `${item.month} (${item.daysToExpiration}d)` : item.month,
+    value: item.value,
+    isSpot: item.month.toLowerCase().includes('current') || item.month.toLowerCase().includes('spot'),
+    daysToExpiration: item.daysToExpiration || 0
+  }));
+
+  // Format volume data (if available)
+  const volumeChartData = volumeData ? volumeData.map(item => ({
+    date: new Date(item.DATE).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    volume: item['VOLATILITY INDEX VOLUME'] || 0,
+    openInterest: item['VOLATILITY INDEX OI'] || 0
+  })) : [];
   
   return (
-    <div className="space-y-4">
-      <div>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">VIX Futures Term Structure</h2>
-          <div className={`text-sm px-3 py-1 rounded-full ${marketRegimeColor} bg-card border border-border`}>
-            {marketRegime}
-          </div>
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex justify-between items-center">
+          <CardTitle className="flex items-center">
+            VIX Term Structure
+            {isContango !== undefined && (
+              <span 
+                className={`ml-2 px-2 py-1 text-xs rounded-full inline-flex items-center
+                  ${isContango 
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}
+              >
+                {isContango ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
+                {isContango ? 'Contango' : 'Backwardation'}
+              </span>
+            )}
+            {spotVIX && (
+              <span className="ml-2 px-2 py-1 text-xs bg-primary/10 text-primary rounded-full">
+                Spot VIX: {spotVIX.toFixed(2)}
+              </span>
+            )}
+          </CardTitle>
         </div>
-        <div className="h-[250px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
-              <XAxis 
-                dataKey="daysToExpiration" 
-                type="number" 
-                domain={[0, 'dataMax']} 
-                stroke="#64748B"
-                label={{ value: 'Days to Expiration', position: 'insideBottom', offset: -5 }}
-              />
-              <YAxis 
-                stroke="#64748B" 
-                domain={yAxisDomain}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend />
-              <ReferenceLine 
-                y={averageFuture} 
-                stroke="#94A3B8" 
-                strokeDasharray="3 3" 
-                label={{ 
-                  value: `Avg: ${averageFuture.toFixed(2)}`, 
-                  position: 'right',
-                  fill: '#94A3B8',
-                  fontSize: 12
-                }}
-              />
-              <Line 
-                type="monotone"
-                data={regularPoints}
-                dataKey="value" 
-                stroke="#3B82F6"
-                strokeWidth={2}
-                dot={{ r: 4, strokeWidth: 1 }}
-                activeDot={{ r: 6, strokeWidth: 1 }}
-                name="VIX Futures"
-              />
-              {impliedForwardPoints.length > 0 && (
-                <Line 
-                  type="monotone"
-                  data={impliedForwardPoints}
-                  dataKey="value" 
-                  stroke="#A855F7"
-                  strokeWidth={1.5}
-                  strokeDasharray="5 5"
-                  dot={{ r: 4, strokeWidth: 1, fill: "#A855F7" }}
-                  activeDot={{ r: 6, strokeWidth: 1 }}
-                  name="Implied Forward VIX"
-                />
-              )}
-              {constantMaturityPoints.length > 0 && (
-                <Scatter 
-                  data={constantMaturityPoints}
-                  fill="#F59E0B"
-                  name="30-Day Constant Maturity VIX"
-                  line={{ stroke: '#F59E0B', strokeWidth: 1.5 }}
+      </CardHeader>
+      <CardContent>
+        <Tabs value={view} onValueChange={(v) => setView(v as any)} className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="futures">Futures Curve</TabsTrigger>
+            {volumeData && volumeData.length > 0 && (
+              <TabsTrigger value="volume">Volume/OI</TabsTrigger>
+            )}
+            <TabsTrigger value="explain">
+              <Info className="h-4 w-4 mr-1" />
+              Explanation
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="futures" className="space-y-4">
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={chartData}
+                  margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
                 >
-                </Scatter>
-              )}
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-      
-      <div>
-        <h2 className="text-lg font-semibold mb-4">Month-to-Month Spreads</h2>
-        <div className="h-[200px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={differenceData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
-              <XAxis dataKey="month" stroke="#64748B" />
-              <YAxis stroke="#64748B" />
-              <Tooltip content={<DifferenceTooltip />} />
-              <ReferenceLine y={0} stroke="#94A3B8" />
-              <Bar 
-                dataKey="difference" 
-                radius={[4, 4, 0, 0]}
-                fill="#3B82F6"
-                // Using fill callback is causing TypeScript errors, so we'll use a style approach
-                className="fill-current"
-                // We'll apply color via a custom attribute
-                name="difference-bar"
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="flex justify-center space-x-6 text-xs text-muted-foreground mt-2">
-          <div className="flex items-center">
-            <div className="w-3 h-3 rounded-full mr-1 bg-positive"></div>
-            <span>Backwardation (VIX decreasing)</span>
-          </div>
-          <div className="flex items-center">
-            <div className="w-3 h-3 rounded-full mr-1 bg-negative"></div>
-            <span>Contango (VIX increasing)</span>
-          </div>
-        </div>
-      </div>
-
-      {volumeData && volumeData.length > 0 && (
-        <div>
-          <h2 className="text-lg font-semibold mb-4">VIX Futures Volume & Open Interest</h2>
-          <div className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={volumeData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
-                <XAxis 
-                  dataKey="date" 
-                  stroke="#64748B"
-                  tickFormatter={(value) => {
-                    const date = new Date(value);
-                    return date.toLocaleDateString('default', { month: 'short', day: 'numeric' });
-                  }}
-                />
-                <YAxis 
-                  stroke="#64748B"
-                  yAxisId="left"
-                  label={{ value: 'Volume', angle: -90, position: 'insideLeft', fill: '#64748B', fontSize: 12 }}
-                />
-                <YAxis 
-                  stroke="#64748B"
-                  yAxisId="right"
-                  orientation="right"
-                  label={{ value: 'Open Interest', angle: 90, position: 'insideRight', fill: '#64748B', fontSize: 12 }}
-                />
-                <Tooltip content={<VolumeTooltip />} />
-                <Legend />
-                <Bar 
-                  yAxisId="left"
-                  dataKey="volume" 
-                  fill="#8884d8" 
-                  name="Volume"
-                  radius={[4, 4, 0, 0]}
-                />
-                <Area
-                  yAxisId="right"
-                  dataKey="openInterest"
-                  type="monotone"
-                  fill="#82ca9d"
-                  stroke="#82ca9d"
-                  name="Open Interest"
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
-      <div className="bg-card border border-border rounded-lg p-4 mt-4">
-        <h3 className="text-md font-semibold mb-3">VIX Term Structure Table</h3>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableCaption>VIX Futures Term Structure with Calculations</TableCaption>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Month</TableHead>
-                <TableHead>VIX Value</TableHead>
-                <TableHead>Days to Expiration</TableHead>
-                <TableHead>Market Structure</TableHead>
-                <TableHead>Type</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map((point, index) => (
-                <TableRow key={index}>
-                  <TableCell>{point.month}</TableCell>
-                  <TableCell>{point.value.toFixed(2)}</TableCell>
-                  <TableCell>{point.daysToExpiration ?? 'N/A'}</TableCell>
-                  <TableCell>
-                    {index > 0 && regularPoints.includes(point) ? (
-                      <span className={point.value > regularPoints[index-1].value ? 'text-negative' : 'text-positive'}>
-                        {point.value > regularPoints[index-1].value ? 'Contango' : 'Backwardation'}
-                      </span>
-                    ) : 'N/A'}
-                  </TableCell>
-                  <TableCell>
-                    {point.isImpliedForward ? (
-                      <span className="text-purple-500">Implied Forward</span>
-                    ) : point.isConstantMaturity ? (
-                      <span className="text-amber-500">Constant Maturity</span>
-                    ) : (
-                      <span className="text-blue-500">Standard</span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-      
-      <div className="bg-card border border-border rounded-lg p-4">
-        <h3 className="text-md font-semibold mb-2">About VIX Term Structure</h3>
-        <div className="space-y-2 text-sm text-muted-foreground">
-          <p>
-            <span className="font-medium text-foreground">VIX Futures Term Structure</span> plots the prices of VIX futures contracts against their expiration dates. 
-            It provides insights into market expectations of future volatility.
-          </p>
-          <div className="flex space-x-4">
-            <div>
-              <p className="font-medium text-foreground">Contango</p>
-              <p>Longer-dated futures priced higher than shorter-dated ones. Typically indicates market expects volatility to increase.</p>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fontSize: 12 }}
+                    interval={0}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis 
+                    domain={['auto', 'auto']}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <Tooltip formatter={(value) => [`${value}`, 'VIX']} />
+                  <Legend />
+                  <Line
+                    name="VIX Futures"
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#8884d8"
+                    activeDot={{ r: 8 }}
+                    strokeWidth={2}
+                  />
+                  
+                  {/* Add implied forwards if available */}
+                  {impliedForwards.length > 0 && (
+                    <Line
+                      name="Implied Forward VIX"
+                      type="monotone"
+                      data={impliedForwards.map(item => ({
+                        name: item.month,
+                        value: item.value,
+                        daysToExpiration: item.daysToExpiration || 0
+                      }))}
+                      dataKey="value"
+                      stroke="#82ca9d"
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      dot={{ r: 5 }}
+                    />
+                  )}
+                  
+                  {/* Add constant maturity values if available */}
+                  {constantMaturities.length > 0 && (
+                    <ReferenceLine 
+                      y={constantMaturities[0].value} 
+                      stroke="#ff7300" 
+                      strokeDasharray="3 3"
+                      label={{ 
+                        value: `${constantMaturities[0].month}: ${constantMaturities[0].value.toFixed(2)}`,
+                        position: 'insideBottomRight'
+                      }}
+                    />
+                  )}
+                </LineChart>
+              </ResponsiveContainer>
             </div>
-            <div>
-              <p className="font-medium text-foreground">Backwardation</p>
-              <p>Longer-dated futures priced lower than shorter-dated ones. Typically occurs during market stress.</p>
+            
+            {/* Term structure data table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-3">Month</th>
+                    <th className="text-right py-2 px-3">Value</th>
+                    <th className="text-right py-2 px-3">Days to Expiry</th>
+                    <th className="text-center py-2 px-3">Status</th>
+                    <th className="text-left py-2 px-3">Type</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.map((item, index) => (
+                    <tr key={index} className={`border-b ${item.isImpliedForward ? 'bg-secondary/10' : item.isConstantMaturity ? 'bg-primary/10' : ''}`}>
+                      <td className="py-2 px-3">{item.month}</td>
+                      <td className="text-right py-2 px-3">{item.value.toFixed(2)}</td>
+                      <td className="text-right py-2 px-3">{item.daysToExpiration !== undefined ? item.daysToExpiration : '-'}</td>
+                      <td className="text-center py-2 px-3">
+                        {item.isContango !== undefined && (
+                          <span 
+                            className={`px-2 py-1 text-xs rounded-full inline-flex items-center
+                              ${item.isContango 
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                                : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}
+                          >
+                            {item.isContango ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
+                            {item.isContango ? 'Contango' : 'Backwardation'}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2 px-3">
+                        {item.isImpliedForward ? 'Implied Forward' : item.isConstantMaturity ? 'Constant Maturity' : 'Futures'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
-          <p>
-            <span className="font-medium text-foreground">Implied Forward VIX</span> calculates the expected VIX level between two expiration dates using the formula:
-            Forward_VIX = sqrt( ( (F2² × T2) - (F1² × T1) ) / (T2 - T1) )
-          </p>
-          <p>
-            <span className="font-medium text-foreground">Constant Maturity VIX</span> represents a VIX futures value with a fixed time to expiration (e.g., 30 days),
-            calculated by interpolating between the two nearest contracts.
-          </p>
-        </div>
-      </div>
-    </div>
+          </TabsContent>
+          
+          {volumeData && volumeData.length > 0 && (
+            <TabsContent value="volume">
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={volumeChartData}
+                    margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 12 }}
+                      interval={0}
+                      angle={-45}
+                      textAnchor="end"
+                      height={60}
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 12 }}
+                      yAxisId="left"
+                      orientation="left"
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 12 }}
+                      yAxisId="right"
+                      orientation="right"
+                    />
+                    <Tooltip />
+                    <Legend />
+                    <Bar yAxisId="left" name="Volume" dataKey="volume" fill="#8884d8" />
+                    <Bar yAxisId="right" name="Open Interest" dataKey="openInterest" fill="#82ca9d" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </TabsContent>
+          )}
+          
+          <TabsContent value="explain">
+            <div className="prose prose-sm dark:prose-invert max-w-none">
+              <h4>Understanding VIX Term Structure</h4>
+              <p>
+                The VIX Term Structure chart shows the relationship between VIX futures prices and their respective
+                expiration dates. This curve provides insights into market expectations of future volatility.
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-4">
+                <div className="bg-muted p-3 rounded-md">
+                  <h5 className="flex items-center text-sm font-medium">
+                    <TrendingUp className="w-4 h-4 mr-1 text-positive" />
+                    Contango
+                  </h5>
+                  <p className="text-xs mt-1">
+                    When longer-dated futures trade at higher prices than shorter-dated ones. 
+                    This suggests markets expect volatility to increase from current levels 
+                    or revert to a higher long-term average.
+                  </p>
+                </div>
+                
+                <div className="bg-muted p-3 rounded-md">
+                  <h5 className="flex items-center text-sm font-medium">
+                    <TrendingDown className="w-4 h-4 mr-1 text-negative" />
+                    Backwardation
+                  </h5>
+                  <p className="text-xs mt-1">
+                    When longer-dated futures trade at lower prices than shorter-dated ones.
+                    This typically occurs during market stress periods and suggests markets
+                    expect current high volatility to decrease over time.
+                  </p>
+                </div>
+              </div>
+              
+              <h5>Special Calculations</h5>
+              <ul className="text-xs space-y-2">
+                <li>
+                  <strong>Implied Forward VIX:</strong> The market's expectation for VIX levels between two 
+                  future expiration dates, calculated using the formula: 
+                  <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                    Forward_VIX = sqrt(((F2² × T2) - (F1² × T1)) / (T2 - T1))
+                  </code>
+                </li>
+                <li>
+                  <strong>Constant Maturity VIX:</strong> Represents a VIX futures value with a fixed time 
+                  to expiration (e.g., 30 days), calculated by weighting the prices of the two nearest 
+                  futures contracts.
+                </li>
+              </ul>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 };
 

@@ -55,6 +55,41 @@ CREATE POLICY "Allow service role to insert/update" ON vix_futures_data
   FOR INSERT USING (auth.role() = 'service_role');
 ```
 
+### 3. VIX Term Structure Table
+
+```sql
+CREATE TABLE IF NOT EXISTS vix_term_structure (
+  id BIGSERIAL PRIMARY KEY,
+  calculation_date DATE NOT NULL,
+  month VARCHAR(20) NOT NULL,
+  value REAL NOT NULL,
+  days_to_expiration INTEGER,
+  is_contango BOOLEAN,
+  is_implied_forward BOOLEAN DEFAULT false,
+  is_constant_maturity BOOLEAN DEFAULT false,
+  forward_start_date DATE,
+  forward_end_date DATE,
+  maturity_days INTEGER,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create index on calculation_date for faster queries
+CREATE INDEX IF NOT EXISTS idx_vix_term_calculation_date ON vix_term_structure (calculation_date);
+
+-- Create a unique constraint to prevent duplicate calculations
+CREATE UNIQUE INDEX IF NOT EXISTS idx_vix_term_unique_values ON vix_term_structure (calculation_date, month, is_implied_forward, is_constant_maturity);
+
+-- Set up Row Level Security
+ALTER TABLE vix_term_structure ENABLE ROW LEVEL SECURITY;
+
+-- Create policy that allows everyone to read data but only authenticated services to insert
+CREATE POLICY "Allow public read access" ON vix_term_structure
+  FOR SELECT USING (true);
+
+CREATE POLICY "Allow service role to insert/update" ON vix_term_structure
+  FOR INSERT USING (auth.role() = 'service_role');
+```
+
 ## Automated Data Collection (Optional Future Feature)
 
 You could set up a scheduled function to collect VIX data regularly:
