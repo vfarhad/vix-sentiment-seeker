@@ -19,13 +19,24 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
     
     // Filter out any invalid entries
     yahooMarketsData = yahooMarketsData.filter(index => 
-      index && !isNaN(parseFloat(index.value.toString())) && index.name && index.change
+      index && !isNaN(parseFloat(String(index.value))) && index.name && index.change !== undefined
     );
     
     if (yahooMarketsData && yahooMarketsData.length > 0) {
       console.log("Successfully loaded market data from Yahoo Finance markets page");
       toast.success('Live market data loaded from Yahoo Finance');
-      return yahooMarketsData;
+      
+      // Convert Yahoo market data to the expected MarketIndex format
+      const formattedData: MarketIndex[] = yahooMarketsData.map(item => ({
+        name: item.name,
+        value: typeof item.value === 'number' ? item.value.toLocaleString() : item.value,
+        change: item.change,
+        changePercent: typeof item.changePercent === 'number' 
+          ? `${item.changePercent.toFixed(2)}%` 
+          : item.changePercent
+      }));
+      
+      return formattedData;
     }
     
     // Fall back to investing.com if Yahoo fails
@@ -34,7 +45,7 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
     
     // Filter out any invalid entries
     investingData = investingData.filter(index => 
-      index && !isNaN(parseFloat(index.value.toString())) && index.name && index.change
+      index && !isNaN(parseFloat(String(index.value))) && index.name && index.change !== undefined
     );
     
     if (investingData && investingData.length > 0) {

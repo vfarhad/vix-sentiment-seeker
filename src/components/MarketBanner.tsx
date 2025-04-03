@@ -5,7 +5,7 @@ import { ArrowDown, ArrowUp } from 'lucide-react';
 interface MarketIndexProps {
   name: string;
   value: string;
-  change: string;
+  change: string | number;
   changePercent: string;
 }
 
@@ -33,7 +33,10 @@ const MarketBanner: React.FC<{ indices: MarketIndexProps[], isLoading?: boolean 
     <div className="w-full bg-secondary py-2 px-4 overflow-x-auto">
       <div className="flex space-x-6 justify-between min-w-max lg:min-w-0">
         {indices.map((index, i) => {
-          const isPositive = !index.change.startsWith('-');
+          // Handle both string and number types for change value
+          const isPositive = typeof index.change === 'string' 
+            ? !index.change.startsWith('-')
+            : index.change >= 0;
           
           return (
             <div key={i} className="flex flex-col items-center px-4 py-1">

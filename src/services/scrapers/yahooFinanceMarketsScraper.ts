@@ -1,12 +1,13 @@
+
 import { fetchWithProxy } from "./baseScraperUtils";
 import { toast } from "sonner";
 
 export interface YahooMarketIndex {
   symbol: string;
   name: string;
-  value: number;
-  change: number;
-  changePercent: number;
+  value: number | string;
+  change: number | string;
+  changePercent: number | string;
   lastUpdated: Date;
 }
 
