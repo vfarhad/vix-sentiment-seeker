@@ -11,8 +11,7 @@ export type Database = {
     Tables: {
       SP500_HIST_DATA: {
         Row: {
-          CLOSE: number | null
-          created_at: string
+          CLOSE: number
           DATE: string
           HIGH: number | null
           id: number
@@ -20,8 +19,7 @@ export type Database = {
           OPEN: number | null
         }
         Insert: {
-          CLOSE?: number | null
-          created_at?: string
+          CLOSE: number
           DATE: string
           HIGH?: number | null
           id?: number
@@ -29,15 +27,22 @@ export type Database = {
           OPEN?: number | null
         }
         Update: {
-          CLOSE?: number | null
-          created_at?: string
+          CLOSE?: number
           DATE?: string
           HIGH?: number | null
           id?: number
           LOW?: number | null
           OPEN?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "SP500_HIST_DATA_DATE_fkey"
+            columns: ["DATE"]
+            isOneToOne: false
+            referencedRelation: "VIX_HIST_DATA"
+            referencedColumns: ["DATE"]
+          },
+        ]
       }
       VIX_FUTURES_HIST_DATA: {
         Row: {
