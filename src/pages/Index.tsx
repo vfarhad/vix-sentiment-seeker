@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from '@/components/Header';
 import MarketBanner from '@/components/MarketBanner';
@@ -10,6 +11,7 @@ import MarketStatusBox from '@/components/MarketStatusBox';
 import SupabaseSetup from '@/components/SupabaseSetup';
 import SupabaseStatus from '@/components/SupabaseStatus';
 import VIXContangoTable from '@/components/VIXContangoTable';
+import CryptoWidget from '@/components/CryptoWidget';
 import { vixStatistics, marketSentiment, marketHeadlines } from '@/lib/mockData';
 import { fetchMarketIndices, setupMarketDataPolling, MarketIndex } from '@/services/marketDataService';
 import { scrapeHistoricalVIX, scrapeVIXFutures, VIXHistoricalDataPoint } from '@/services/vixScraperService';
@@ -424,6 +426,11 @@ const Index = () => {
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
+            {/* Add Crypto Widget at the top */}
+            <div className="bg-card rounded-lg border border-border p-1 h-[400px]">
+              <CryptoWidget />
+            </div>
+            
             {dataLoading ? (
               <div className="bg-card rounded-lg border border-border p-6 flex flex-col items-center justify-center h-[300px]">
                 <div className="flex items-center space-x-2">
