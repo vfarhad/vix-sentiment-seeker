@@ -9,6 +9,36 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      SP500_HIST_DATA: {
+        Row: {
+          CLOSE: number | null
+          created_at: string
+          DATE: string
+          HIGH: number | null
+          id: number
+          LOW: number | null
+          OPEN: number | null
+        }
+        Insert: {
+          CLOSE?: number | null
+          created_at?: string
+          DATE: string
+          HIGH?: number | null
+          id?: number
+          LOW?: number | null
+          OPEN?: number | null
+        }
+        Update: {
+          CLOSE?: number | null
+          created_at?: string
+          DATE?: string
+          HIGH?: number | null
+          id?: number
+          LOW?: number | null
+          OPEN?: number | null
+        }
+        Relationships: []
+      }
       VIX_FUTURES_HIST_DATA: {
         Row: {
           DATE: string
