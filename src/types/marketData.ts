@@ -2,7 +2,7 @@
 export interface MarketIndex {
   name: string;
   value: string;
-  change: string | number;
+  change: string;
   changePercent: string;
 }
 

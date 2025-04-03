@@ -4,8 +4,6 @@ import { MarketIndex, MarketStatus, HistoricalData, SearchResult, FMPHistoricalD
 import { generateFallbackData, generateAllFallbackData } from './fallbackDataService';
 import { fetchFMPQuote, fetchFMPHistoricalData, fetchFMPMarketStatus } from './fmpAPIService';
 import { transformFMPData } from './dataTransformService';
-import { scrapeYahooFinanceMarkets } from './scrapers/yahooFinanceMarketsScraper';
-import { scrapeInvestingMarkets } from './scrapers/investingMarketsScraper';
 
 // Export MarketIndex type for use in components
 export type { MarketIndex } from '@/types/marketData';
@@ -13,50 +11,6 @@ export type { MarketIndex } from '@/types/marketData';
 // Fetch market indices data
 export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
   try {
-    // Try Yahoo Finance markets page first
-    console.log("Attempting to fetch market data from Yahoo Finance markets page");
-    let yahooMarketsData = await scrapeYahooFinanceMarkets();
-    
-    // Filter out any invalid entries
-    yahooMarketsData = yahooMarketsData.filter(index => 
-      index && !isNaN(parseFloat(String(index.value))) && index.name && index.change !== undefined
-    );
-    
-    if (yahooMarketsData && yahooMarketsData.length > 0) {
-      console.log("Successfully loaded market data from Yahoo Finance markets page");
-      toast.success('Live market data loaded from Yahoo Finance');
-      
-      // Convert Yahoo market data to the expected MarketIndex format
-      const formattedData: MarketIndex[] = yahooMarketsData.map(item => ({
-        name: item.name,
-        value: typeof item.value === 'number' ? item.value.toLocaleString() : item.value,
-        change: item.change,
-        changePercent: typeof item.changePercent === 'number' 
-          ? `${item.changePercent.toFixed(2)}%` 
-          : item.changePercent
-      }));
-      
-      return formattedData;
-    }
-    
-    // Fall back to investing.com if Yahoo fails
-    console.log("Yahoo Finance data unavailable, falling back to investing.com");
-    let investingData = await scrapeInvestingMarkets();
-    
-    // Filter out any invalid entries
-    investingData = investingData.filter(index => 
-      index && !isNaN(parseFloat(String(index.value))) && index.name && index.change !== undefined
-    );
-    
-    if (investingData && investingData.length > 0) {
-      console.log("Successfully loaded market data from investing.com");
-      toast.success('Live market data loaded from investing.com');
-      return investingData;
-    }
-    
-    // Fall back to FMP API if both scrapers fail
-    console.log("Scraped data unavailable, falling back to FMP API");
-    
     // Define indices to fetch with their symbols
     const indices = [
       { symbol: "SPY", name: "S&P 500" },   // S&P 500 ETF
@@ -120,7 +74,7 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
     
     return results;
   } catch (error) {
-    console.error('Error fetching market data:', error);
+    console.error('Error fetching market data from FMP:', error);
     toast.info('Using simulated market data');
     
     // Generate complete simulated data as fallback
@@ -145,17 +99,7 @@ export const fetchHistoricalData = async (
     return transformFMPHistoricalData(fmpData);
   } catch (error) {
     console.error('Error fetching historical data:', error);
-    
-    // Return a mock historical data set as fallback
-    return {
-      c: Array(30).fill(0).map(() => 100 + Math.random() * 50),
-      h: Array(30).fill(0).map(() => 120 + Math.random() * 50),
-      l: Array(30).fill(0).map(() => 80 + Math.random() * 40),
-      o: Array(30).fill(0).map(() => 90 + Math.random() * 60),
-      t: Array(30).fill(0).map((_, i) => Math.floor(Date.now() / 1000) - (29 - i) * 86400),
-      v: Array(30).fill(0).map(() => 1000000 + Math.random() * 9000000),
-      s: "ok"
-    };
+    throw error;
   }
 };
 
@@ -188,26 +132,7 @@ export const searchIndices = async (query: string): Promise<SearchResult> => {
 
 // Fetch market status
 export const fetchMarketStatus = async (exchange = "US"): Promise<MarketStatus> => {
-  try {
-    return await fetchFMPMarketStatus();
-  } catch (error) {
-    console.error('Error fetching market status:', error);
-    
-    // Return default market status as fallback
-    const now = new Date();
-    const isWeekend = now.getDay() === 0 || now.getDay() === 6;
-    const hours = now.getHours();
-    const isMarketHours = hours >= 9 && hours < 16;
-    
-    return {
-      isOpen: !isWeekend && isMarketHours,
-      status: !isWeekend && isMarketHours ? 'open' : 'closed',
-      exchange: 'US',
-      session: !isWeekend && isMarketHours ? 'regular' : 'closed',
-      nextTradingDay: null,
-      holiday: isWeekend ? (now.getDay() === 0 ? 'Sunday' : 'Saturday') : null
-    };
-  }
+  return await fetchFMPMarketStatus();
 };
 
 // Function to refresh data at regular intervals
