@@ -57,7 +57,9 @@ export const testCorsProxy = async (proxyUrl: string, testUrl: string): Promise<
         'Origin': window.location.origin,
         'Referer': proxyUrl.includes('?') ? testUrl : fullUrl
       },
-      timeout: 5000 // 5 second timeout for testing
+      // Remove the timeout property as it's not supported in RequestInit
+      // Add a signal with AbortController for timeout instead
+      signal: AbortSignal.timeout(5000) // 5 second timeout for testing
     });
     
     if (response.status >= 200 && response.status < 400) {
