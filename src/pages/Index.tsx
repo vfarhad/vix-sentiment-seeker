@@ -390,7 +390,7 @@ const Index = () => {
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <Header />
-      <MarketBanner indices={marketIndices} isLoading={isLoading} />
+      <MarketBanner isLoading={isLoading} />
       
       <main className="flex-1 p-6">
         <div className="mb-4 flex flex-wrap gap-2">
