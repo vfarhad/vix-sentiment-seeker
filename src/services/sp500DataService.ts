@@ -372,3 +372,86 @@ export const getLatestVIXTermStructure = async (): Promise<VIXTermStructurePoint
     return [];
   }
 };
+
+// Helper function to calculate contango percentages and differences
+export const calculateContangoMetrics = (vixTermStructure: VIXTermStructurePoint[]): {
+  contangoPercentages: { month: number; value: number }[];
+  contangoDifferences: { month: number; value: number }[];
+  monthRangeMetrics: { label: string; value: number }[];
+} => {
+  // Filter futures only (not implied or constant maturity)
+  const futures = vixTermStructure
+    .filter(item => !item.isImpliedForward && !item.isConstantMaturity)
+    .sort((a, b) => {
+      // Sort by days to expiration
+      const daysA = a.daysToExpiration || 0;
+      const daysB = b.daysToExpiration || 0;
+      return daysA - daysB;
+    });
+
+  if (futures.length < 2) {
+    return {
+      contangoPercentages: [],
+      contangoDifferences: [],
+      monthRangeMetrics: []
+    };
+  }
+
+  // Get the spot/current VIX
+  const spotVIX = futures[0].value;
+  
+  // Calculate contango percentages and differences
+  const contangoPercentages = futures.map((future, index) => {
+    if (index === 0) return { month: 1, value: 0 }; // Spot month is 0% change
+    
+    // Calculate percentage change from spot
+    const percentChange = ((future.value - spotVIX) / spotVIX) * 100;
+    
+    // Month number (1-based index)
+    const monthNumber = index + 1;
+    
+    return {
+      month: monthNumber,
+      value: percentChange
+    };
+  });
+  
+  // Calculate absolute differences
+  const contangoDifferences = futures.map((future, index) => {
+    if (index === 0) return { month: 1, value: 0 }; // Spot month has 0 difference
+    
+    // Calculate absolute difference from spot
+    const difference = future.value - spotVIX;
+    
+    // Month number (1-based index)
+    const monthNumber = index + 1;
+    
+    return {
+      month: monthNumber,
+      value: difference
+    };
+  });
+  
+  // Calculate month range metrics (e.g., Month 7 to 4 contango)
+  const monthRangeMetrics = [];
+  
+  // Try to calculate Month 7 to 4 contango if we have enough months
+  if (futures.length >= 7) {
+    const month7 = futures[6].value;
+    const month4 = futures[3].value;
+    const month7to4 = ((month7 - month4) / month4) * 100;
+    
+    monthRangeMetrics.push({
+      label: 'Month 7 to 4 contango',
+      value: month7to4
+    });
+  }
+  
+  // Other month range calculations can be added here
+  
+  return {
+    contangoPercentages,
+    contangoDifferences,
+    monthRangeMetrics
+  };
+};

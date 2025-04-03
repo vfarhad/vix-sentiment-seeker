@@ -9,10 +9,18 @@ import StatisticCard from '@/components/StatisticCard';
 import MarketStatusBox from '@/components/MarketStatusBox';
 import SupabaseSetup from '@/components/SupabaseSetup';
 import SupabaseStatus from '@/components/SupabaseStatus';
+import VIXContangoTable from '@/components/VIXContangoTable';
 import { vixStatistics, marketSentiment, marketHeadlines } from '@/lib/mockData';
 import { fetchMarketIndices, setupMarketDataPolling, MarketIndex } from '@/services/marketDataService';
 import { scrapeHistoricalVIX, scrapeVIXFutures, VIXHistoricalDataPoint, VIXFuturesDataPoint } from '@/services/vixScraperService';
-import { fetchSP500Data, getVIXFuturesHistData, calculateVIXTermStructure, getLatestVIXTermStructure, VIXTermStructurePoint } from '@/services/sp500DataService';
+import { 
+  fetchSP500Data, 
+  getVIXFuturesHistData, 
+  calculateVIXTermStructure, 
+  getLatestVIXTermStructure, 
+  VIXTermStructurePoint,
+  calculateContangoMetrics
+} from '@/services/sp500DataService';
 import { storeHistoricalVIXData, getHistoricalVIXData, storeVIXFuturesData, getLatestVIXFuturesData, checkSupabaseTables, getVIXHistData } from '@/services/vixDataService';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -34,6 +42,9 @@ const Index = () => {
   const [dataLoading, setDataLoading] = useState(true);
   const [sp500Loading, setSP500Loading] = useState(true);
   const [vixFuturesLoading, setVIXFuturesLoading] = useState(true);
+  const [contangoPercentages, setContangoPercentages] = useState<any[]>([]);
+  const [contangoDifferences, setContangoDifferences] = useState<any[]>([]);
+  const [monthRangeMetrics, setMonthRangeMetrics] = useState<any[]>([]);
 
   const { data, isError } = useQuery({
     queryKey: ['marketIndices'],
@@ -149,6 +160,12 @@ const Index = () => {
           }
           
           setVIXFuturesValues(termStructure);
+          
+          const metrics = calculateContangoMetrics(termStructure);
+          setContangoPercentages(metrics.contangoPercentages);
+          setContangoDifferences(metrics.contangoDifferences);
+          setMonthRangeMetrics(metrics.monthRangeMetrics);
+          
           setShowVIXFutures(true);
           toast.success('VIX term structure loaded successfully');
           setVIXFuturesLoading(false);
@@ -163,18 +180,42 @@ const Index = () => {
           }
           
           setVIXFuturesValues(calculatedTermStructure);
+          
+          const metrics = calculateContangoMetrics(calculatedTermStructure);
+          setContangoPercentages(metrics.contangoPercentages);
+          setContangoDifferences(metrics.contangoDifferences);
+          setMonthRangeMetrics(metrics.monthRangeMetrics);
+          
           setShowVIXFutures(true);
           toast.success('VIX term structure calculated successfully');
         } else {
           const supabaseData = await getLatestVIXFuturesData();
           if (supabaseData && supabaseData.length > 0) {
             setVIXFuturesValues(supabaseData);
+            
+            const metrics = calculateContangoMetrics(supabaseData);
+            setContangoPercentages(metrics.contangoPercentages);
+            setContangoDifferences(metrics.contangoDifferences);
+            setMonthRangeMetrics(metrics.monthRangeMetrics);
+            
             setShowVIXFutures(true);
             toast.success('VIX futures data loaded from Supabase');
           } else {
             const scrapedData = await scrapeVIXFutures();
             if (scrapedData && scrapedData.length > 0) {
               setVIXFuturesValues(scrapedData);
+              
+              const futuresWithMetadata = scrapedData.map((item, index) => ({
+                ...item,
+                daysToExpiration: index * 30,
+                isContango: index > 0 ? scrapedData[index].value > scrapedData[0].value : undefined
+              }));
+              
+              const metrics = calculateContangoMetrics(futuresWithMetadata);
+              setContangoPercentages(metrics.contangoPercentages);
+              setContangoDifferences(metrics.contangoDifferences);
+              setMonthRangeMetrics(metrics.monthRangeMetrics);
+              
               setShowVIXFutures(true);
               toast.success('VIX futures data loaded');
               
@@ -298,6 +339,12 @@ const Index = () => {
         }
         
         setVIXFuturesValues(termStructure);
+        
+        const metrics = calculateContangoMetrics(termStructure);
+        setContangoPercentages(metrics.contangoPercentages);
+        setContangoDifferences(metrics.contangoDifferences);
+        setMonthRangeMetrics(metrics.monthRangeMetrics);
+        
         setShowVIXFutures(true);
         toast.success('VIX term structure calculated successfully');
         return;
@@ -306,6 +353,18 @@ const Index = () => {
       const scrapedData = await scrapeVIXFutures();
       if (scrapedData && scrapedData.length > 0) {
         setVIXFuturesValues(scrapedData);
+        
+        const futuresWithMetadata = scrapedData.map((item, index) => ({
+          ...item,
+          daysToExpiration: index * 30,
+          isContango: index > 0 ? scrapedData[index].value > scrapedData[0].value : undefined
+        }));
+        
+        const metrics = calculateContangoMetrics(futuresWithMetadata);
+        setContangoPercentages(metrics.contangoPercentages);
+        setContangoDifferences(metrics.contangoDifferences);
+        setMonthRangeMetrics(metrics.monthRangeMetrics);
+        
         setShowVIXFutures(true);
         toast.success('VIX futures data loaded');
       } else {
@@ -408,10 +467,28 @@ const Index = () => {
                 </div>
               </div>
             ) : showVIXFutures ? (
-              <VIXFuturesChart 
-                data={vixFuturesValues} 
-                volumeData={vixFuturesVolumeData} 
-              />
+              <>
+                <VIXFuturesChart 
+                  data={vixFuturesValues} 
+                  volumeData={vixFuturesVolumeData} 
+                />
+                
+                {contangoPercentages.length > 0 && contangoDifferences.length > 0 && (
+                  <VIXContangoTable 
+                    contangoData={[
+                      {
+                        label: '% Contango',
+                        values: contangoPercentages
+                      },
+                      {
+                        label: 'Difference',
+                        values: contangoDifferences
+                      }
+                    ]}
+                    monthRangeMetrics={monthRangeMetrics}
+                  />
+                )}
+              </>
             ) : (
               <div className="bg-card rounded-lg border border-border p-6 flex flex-col items-center justify-center h-[300px]">
                 <p className="text-muted-foreground">Unable to load VIX futures data</p>
