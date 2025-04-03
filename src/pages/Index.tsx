@@ -12,7 +12,7 @@ import SupabaseStatus from '@/components/SupabaseStatus';
 import { vixStatistics, marketSentiment, marketHeadlines } from '@/lib/mockData';
 import { fetchMarketIndices, setupMarketDataPolling, MarketIndex } from '@/services/marketDataService';
 import { scrapeHistoricalVIX, scrapeVIXFutures, VIXHistoricalDataPoint, VIXFuturesDataPoint } from '@/services/vixScraperService';
-import { fetchSP500Data, getVIXFuturesHistData, calculateVIXTermStructure } from '@/services/sp500DataService';
+import { fetchSP500Data, getVIXFuturesHistData, calculateVIXTermStructure, getLatestVIXTermStructure, VIXTermStructurePoint } from '@/services/sp500DataService';
 import { storeHistoricalVIXData, getHistoricalVIXData, storeVIXFuturesData, getLatestVIXFuturesData, checkSupabaseTables, getVIXHistData } from '@/services/vixDataService';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -23,7 +23,7 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [historicalVIXData, setHistoricalVIXData] = useState<VIXHistoricalDataPoint[]>([]);
   const [sp500Data, setSP500Data] = useState<any[]>([]);
-  const [vixFuturesValues, setVIXFuturesValues] = useState<VIXFuturesDataPoint[]>([]);
+  const [vixFuturesValues, setVIXFuturesValues] = useState<VIXTermStructurePoint[]>([]);
   const [vixFuturesVolumeData, setVIXFuturesVolumeData] = useState<any[]>([]);
   const [showVIXChart, setShowVIXChart] = useState(false);
   const [showSP500Chart, setShowSP500Chart] = useState(false);
@@ -140,41 +140,54 @@ const Index = () => {
     const fetchVIXFutures = async () => {
       setVIXFuturesLoading(true);
       try {
-        const volumeData = await getVIXFuturesHistData();
-        if (volumeData && volumeData.length > 0) {
-          setVIXFuturesVolumeData(volumeData);
-          
-          const termStructure = await calculateVIXTermStructure();
-          if (termStructure && termStructure.length > 0) {
-            setVIXFuturesValues(termStructure);
-            setShowVIXFutures(true);
-            toast.success('VIX futures term structure calculated from historical data');
-            setVIXFuturesLoading(false);
-            return;
+        const termStructure = await getLatestVIXTermStructure();
+        
+        if (termStructure && termStructure.length > 0) {
+          const volumeData = await getVIXFuturesHistData();
+          if (volumeData && volumeData.length > 0) {
+            setVIXFuturesVolumeData(volumeData);
           }
+          
+          setVIXFuturesValues(termStructure);
+          setShowVIXFutures(true);
+          toast.success('VIX term structure loaded successfully');
+          setVIXFuturesLoading(false);
+          return;
         }
         
-        const supabaseData = await getLatestVIXFuturesData();
-        if (supabaseData && supabaseData.length > 0) {
-          setVIXFuturesValues(supabaseData);
+        const calculatedTermStructure = await calculateVIXTermStructure();
+        if (calculatedTermStructure && calculatedTermStructure.length > 0) {
+          const volumeData = await getVIXFuturesHistData();
+          if (volumeData && volumeData.length > 0) {
+            setVIXFuturesVolumeData(volumeData);
+          }
+          
+          setVIXFuturesValues(calculatedTermStructure);
           setShowVIXFutures(true);
-          toast.success('VIX futures data loaded from Supabase');
+          toast.success('VIX term structure calculated successfully');
         } else {
-          const scrapedData = await scrapeVIXFutures();
-          if (scrapedData && scrapedData.length > 0) {
-            setVIXFuturesValues(scrapedData);
+          const supabaseData = await getLatestVIXFuturesData();
+          if (supabaseData && supabaseData.length > 0) {
+            setVIXFuturesValues(supabaseData);
             setShowVIXFutures(true);
-            toast.success('VIX futures data loaded');
-            
-            try {
-              await storeVIXFuturesData(scrapedData);
-            } catch (storageError) {
-              console.warn('Failed to store VIX futures data:', storageError);
-            }
+            toast.success('VIX futures data loaded from Supabase');
           } else {
-            console.warn('No VIX futures data found');
-            toast.error('Failed to load VIX futures data');
-            setShowVIXFutures(false);
+            const scrapedData = await scrapeVIXFutures();
+            if (scrapedData && scrapedData.length > 0) {
+              setVIXFuturesValues(scrapedData);
+              setShowVIXFutures(true);
+              toast.success('VIX futures data loaded');
+              
+              try {
+                await storeVIXFuturesData(scrapedData);
+              } catch (storageError) {
+                console.warn('Failed to store VIX futures data:', storageError);
+              }
+            } else {
+              console.warn('No VIX futures data found');
+              toast.error('Failed to load VIX futures data');
+              setShowVIXFutures(false);
+            }
           }
         }
       } catch (error) {
@@ -273,21 +286,21 @@ const Index = () => {
   }, []);
 
   const handleRetryFuturesLoad = useCallback(async () => {
-    toast.info('Retrying VIX futures data load...');
+    toast.info('Retrying VIX term structure data load...');
     setVIXFuturesLoading(true);
     
     try {
-      const volumeData = await getVIXFuturesHistData();
-      if (volumeData && volumeData.length > 0) {
-        setVIXFuturesVolumeData(volumeData);
-        
-        const termStructure = await calculateVIXTermStructure();
-        if (termStructure && termStructure.length > 0) {
-          setVIXFuturesValues(termStructure);
-          setShowVIXFutures(true);
-          toast.success('VIX futures term structure calculated from historical data');
-          return;
+      const termStructure = await calculateVIXTermStructure();
+      if (termStructure && termStructure.length > 0) {
+        const volumeData = await getVIXFuturesHistData();
+        if (volumeData && volumeData.length > 0) {
+          setVIXFuturesVolumeData(volumeData);
         }
+        
+        setVIXFuturesValues(termStructure);
+        setShowVIXFutures(true);
+        toast.success('VIX term structure calculated successfully');
+        return;
       }
       
       const scrapedData = await scrapeVIXFutures();
