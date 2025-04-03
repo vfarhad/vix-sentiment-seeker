@@ -43,7 +43,7 @@ export const testSP500DataTable = async (): Promise<{ success: boolean; data: SP
     // Query the SP500_HIST_DATA table for a few records
     const { data, error } = await supabase
       .from('SP500_HIST_DATA')
-      .select('*')
+      .select('CLOSE')
       .limit(1)
       .order('DATE', { ascending: false });
     
