@@ -1,5 +1,5 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
@@ -8,6 +8,14 @@ import {
 } from 'recharts';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { SP500DataPoint } from '@/services/sp500/sp500DataService';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
 
 interface SP500ChartProps {
   data: SP500DataPoint[];
@@ -109,6 +117,7 @@ const SP500Chart: React.FC<SP500ChartProps> = ({ data }) => {
           <TabsList className="mb-4">
             <TabsTrigger value="price">Price</TabsTrigger>
             <TabsTrigger value="moving-averages">Moving Averages</TabsTrigger>
+            <TabsTrigger value="data-table">Data Table</TabsTrigger>
           </TabsList>
           
           <TabsContent value="price" className="space-y-4">
@@ -132,7 +141,7 @@ const SP500Chart: React.FC<SP500ChartProps> = ({ data }) => {
                     tick={{ fontSize: 12 }}
                   />
                   <Tooltip 
-                    formatter={(value: number) => [`$${value}`, 'S&P 500']} 
+                    formatter={(value: number) => [`$${value.toFixed(2)}`, 'S&P 500']} 
                   />
                   <Legend />
                   <Line
@@ -172,7 +181,7 @@ const SP500Chart: React.FC<SP500ChartProps> = ({ data }) => {
                   <Tooltip 
                     formatter={(value: number | null) => {
                       if (value === null) return ['-', ''];
-                      return [`$${parseFloat(String(value)).toFixed(2)}`, 'S&P 500'];
+                      return [`$${value.toFixed(2)}`, 'S&P 500'];
                     }} 
                   />
                   <Legend />
@@ -205,6 +214,48 @@ const SP500Chart: React.FC<SP500ChartProps> = ({ data }) => {
                   />
                 </LineChart>
               </ResponsiveContainer>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="data-table">
+            <div className="max-h-[400px] overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Open</TableHead>
+                    <TableHead>High</TableHead>
+                    <TableHead>Low</TableHead>
+                    <TableHead>Close</TableHead>
+                    <TableHead>Change</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.slice(0, 30).map((point, index) => {
+                    const prevClose = index < data.length - 1 ? data[index + 1].CLOSE : point.CLOSE;
+                    const change = point.CLOSE - prevClose;
+                    const changePercent = ((change / prevClose) * 100).toFixed(2);
+                    const isPositive = change >= 0;
+                    
+                    return (
+                      <TableRow key={point.DATE}>
+                        <TableCell>{new Date(point.DATE).toLocaleDateString('en-US', { 
+                          year: 'numeric',
+                          month: 'short', 
+                          day: 'numeric' 
+                        })}</TableCell>
+                        <TableCell>${point.OPEN?.toFixed(2) || '-'}</TableCell>
+                        <TableCell>${point.HIGH?.toFixed(2) || '-'}</TableCell>
+                        <TableCell>${point.LOW?.toFixed(2) || '-'}</TableCell>
+                        <TableCell>${point.CLOSE.toFixed(2)}</TableCell>
+                        <TableCell className={isPositive ? 'text-green-600' : 'text-red-600'}>
+                          {isPositive ? '+' : ''}{changePercent}%
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
           </TabsContent>
         </Tabs>
