@@ -15,6 +15,19 @@ export const fetchSP500Data = async (): Promise<SP500HistoricalDataPoint[]> => {
     
     console.log(`Fetching data from ${formattedDate} onwards`);
     
+    // First check if the table exists by examining its structure
+    const { data: tableInfo, error: tableError } = await supabase
+      .from('SP500_HIST_DATA')
+      .select('DATE, CLOSE')
+      .limit(1);
+      
+    if (tableError) {
+      console.error('Error checking SP500_HIST_DATA table:', tableError);
+      toast.error('Cannot connect to S&P 500 data table');
+      return [];
+    }
+    
+    // Now fetch the actual data
     const { data, error } = await supabase
       .from('SP500_HIST_DATA')
       .select('DATE, CLOSE')
@@ -45,6 +58,7 @@ export const fetchSP500Data = async (): Promise<SP500HistoricalDataPoint[]> => {
       }));
     
     console.log(`Successfully fetched ${transformedData.length} S&P 500 data points`);
+    console.log('Sample transformed data:', transformedData.slice(0, 3));
     
     if (transformedData.length === 0) {
       toast.error('No valid S&P 500 data found in database');
