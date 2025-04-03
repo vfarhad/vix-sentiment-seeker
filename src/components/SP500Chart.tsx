@@ -31,7 +31,7 @@ const SP500Chart = ({ data, className }: SP500ChartProps) => {
     );
   }
   
-  console.log('Rendering S&P 500 chart with data:', data);
+  console.log('Rendering S&P 500 chart with data:', data.slice(0, 5), '... (total:', data.length, 'points)');
   
   // Filter out any invalid data points
   const validData = data.filter(item => 
@@ -60,7 +60,7 @@ const SP500Chart = ({ data, className }: SP500ChartProps) => {
     if (!dateString) return '';
     try {
       const date = new Date(dateString);
-      return `${date.getMonth() + 1}/${date.getDate()}`;
+      return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear().toString().substr(2, 2)}`;
     } catch (e) {
       console.error('Error formatting date:', dateString, e);
       return dateString;
@@ -175,7 +175,7 @@ const SP500Chart = ({ data, className }: SP500ChartProps) => {
         </ResponsiveContainer>
       </div>
       <div className="flex justify-between text-xs text-muted-foreground mt-2">
-        <span>{validData[0]?.date}</span>
+        <span>{formatDate(validData[0]?.date)}</span>
         <div className="flex space-x-4">
           <div className="flex items-center">
             <div className="w-3 h-3 rounded-full mr-1 bg-positive"></div>
@@ -186,7 +186,7 @@ const SP500Chart = ({ data, className }: SP500ChartProps) => {
             <span>50-day MA</span>
           </div>
         </div>
-        <span>{validData[validData.length - 1]?.date}</span>
+        <span>{formatDate(validData[validData.length - 1]?.date)}</span>
       </div>
     </div>
   );
