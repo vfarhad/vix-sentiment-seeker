@@ -38,7 +38,17 @@ export const applyProxy = (url: string): string => {
 export const testCorsProxy = async (proxyUrl: string, testUrl: string): Promise<boolean> => {
   try {
     const fullUrl = proxyUrl + (proxyUrl.includes('?url=') ? encodeURIComponent(testUrl) : testUrl);
-    const response = await fetch(fullUrl, { method: 'HEAD' });
+    
+    // Create an AbortController with a 5-second timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const response = await fetch(fullUrl, { 
+      method: 'HEAD',
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
     return response.ok;
   } catch (error) {
     console.error(`CORS proxy test failed for ${proxyUrl}`, error);

@@ -33,3 +33,4 @@ export const fetchWithProxy = async (url: string): Promise<Response> => {
 
 // Common constants
 export const VIX_URL = 'http://vixcentral.com';
+export const BARCHART_URL = 'https://www.barchart.com';
