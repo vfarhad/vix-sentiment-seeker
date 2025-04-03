@@ -1,3 +1,4 @@
+
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -43,7 +44,7 @@ export const testSP500DataTable = async (): Promise<{ success: boolean; data: SP
     // Query the SP500_HIST_DATA table for a few records
     const { data, error } = await supabase
       .from('SP500_HIST_DATA')
-      .select('CLOSE')
+      .select('CLOSE, DATE')  // Select CLOSE and DATE to match SP500DataPoint type
       .limit(1)
       .order('DATE', { ascending: false });
     
