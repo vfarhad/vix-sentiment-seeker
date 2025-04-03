@@ -1,21 +1,12 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
-  ResponsiveContainer, Legend, ReferenceLine
-} from 'recharts';
-import { TrendingUp, TrendingDown } from 'lucide-react';
 import { SP500DataPoint } from '@/services/sp500/sp500DataService';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
+import SP500PriceChart from './sp500/SP500PriceChart';
+import SP500MovingAveragesChart from './sp500/SP500MovingAveragesChart';
+import SP500DataTable from './sp500/SP500DataTable';
+import TrendIndicator from './sp500/TrendIndicator';
 
 interface SP500ChartProps {
   data: SP500DataPoint[];
@@ -66,7 +57,7 @@ const SP500Chart: React.FC<SP500ChartProps> = ({ data }) => {
 
   // Calculate overall trend (is market up or down)
   const trend = useMemo(() => {
-    if (chartData.length < 2) return { isUp: false, percent: 0 };
+    if (chartData.length < 2) return { isUp: false, percent: '0' };
     
     const firstPrice = chartData[0].close;
     const lastPrice = chartData[chartData.length - 1].close;
@@ -97,18 +88,7 @@ const SP500Chart: React.FC<SP500ChartProps> = ({ data }) => {
         <div className="flex justify-between items-center">
           <CardTitle className="flex items-center">
             S&P 500 Historical Data
-            <span 
-              className={`ml-2 px-2 py-1 text-xs rounded-full inline-flex items-center
-                ${trend.isUp 
-                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
-                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}
-            >
-              {trend.isUp ? 
-                <TrendingUp className="w-3 h-3 mr-1" /> : 
-                <TrendingDown className="w-3 h-3 mr-1" />
-              }
-              {trend.isUp ? '+' : '-'}{trend.percent}%
-            </span>
+            <TrendIndicator trend={trend} />
           </CardTitle>
         </div>
       </CardHeader>
@@ -121,142 +101,15 @@ const SP500Chart: React.FC<SP500ChartProps> = ({ data }) => {
           </TabsList>
           
           <TabsContent value="price" className="space-y-4">
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={chartData}
-                  margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="date" 
-                    tick={{ fontSize: 12 }}
-                    interval={Math.ceil(chartData.length / 15)}
-                    angle={-45}
-                    textAnchor="end"
-                    height={60}
-                  />
-                  <YAxis 
-                    domain={['auto', 'auto']}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <Tooltip 
-                    formatter={(value: number) => [`$${value.toFixed(2)}`, 'S&P 500']} 
-                  />
-                  <Legend />
-                  <Line
-                    name="S&P 500"
-                    type="monotone"
-                    dataKey="close"
-                    stroke="#8884d8"
-                    strokeWidth={2}
-                    dot={false}
-                    activeDot={{ r: 5 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            <SP500PriceChart chartData={chartData} />
           </TabsContent>
           
           <TabsContent value="moving-averages">
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={chartDataWithSMA}
-                  margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="date" 
-                    tick={{ fontSize: 12 }}
-                    interval={Math.ceil(chartData.length / 15)}
-                    angle={-45}
-                    textAnchor="end"
-                    height={60}
-                  />
-                  <YAxis 
-                    domain={['auto', 'auto']}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <Tooltip 
-                    formatter={(value: number | null) => {
-                      if (value === null) return ['-', ''];
-                      return [`$${value.toFixed(2)}`, 'S&P 500'];
-                    }} 
-                  />
-                  <Legend />
-                  <Line
-                    name="S&P 500"
-                    type="monotone"
-                    dataKey="close"
-                    stroke="#8884d8"
-                    strokeWidth={2}
-                    dot={false}
-                    activeDot={{ r: 5 }}
-                  />
-                  <Line
-                    name="10-Day SMA"
-                    type="monotone"
-                    dataKey="sma10"
-                    stroke="#82ca9d"
-                    strokeWidth={1.5}
-                    dot={false}
-                    activeDot={{ r: 4 }}
-                  />
-                  <Line
-                    name="20-Day SMA"
-                    type="monotone"
-                    dataKey="sma20"
-                    stroke="#ff7300"
-                    strokeWidth={1.5}
-                    dot={false}
-                    activeDot={{ r: 4 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            <SP500MovingAveragesChart chartDataWithSMA={chartDataWithSMA} />
           </TabsContent>
           
           <TabsContent value="data-table">
-            <div className="max-h-[400px] overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Open</TableHead>
-                    <TableHead>High</TableHead>
-                    <TableHead>Low</TableHead>
-                    <TableHead>Close</TableHead>
-                    <TableHead>Change</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.slice(0, 30).map((point, index) => {
-                    const prevClose = index < data.length - 1 ? data[index + 1].CLOSE : point.CLOSE;
-                    const change = point.CLOSE - prevClose;
-                    const changePercent = ((change / prevClose) * 100).toFixed(2);
-                    const isPositive = change >= 0;
-                    
-                    return (
-                      <TableRow key={point.DATE}>
-                        <TableCell>{new Date(point.DATE).toLocaleDateString('en-US', { 
-                          year: 'numeric',
-                          month: 'short', 
-                          day: 'numeric' 
-                        })}</TableCell>
-                        <TableCell>${point.OPEN !== undefined && point.OPEN !== null ? point.OPEN.toFixed(2) : '-'}</TableCell>
-                        <TableCell>${point.HIGH !== undefined && point.HIGH !== null ? point.HIGH.toFixed(2) : '-'}</TableCell>
-                        <TableCell>${point.LOW !== undefined && point.LOW !== null ? point.LOW.toFixed(2) : '-'}</TableCell>
-                        <TableCell>${point.CLOSE.toFixed(2)}</TableCell>
-                        <TableCell className={isPositive ? 'text-green-600' : 'text-red-600'}>
-                          {isPositive ? '+' : ''}{changePercent}%
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+            <SP500DataTable data={data} />
           </TabsContent>
         </Tabs>
       </CardContent>
