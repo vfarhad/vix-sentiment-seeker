@@ -1,4 +1,3 @@
-
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -34,6 +33,39 @@ export const testSupabaseConnection = async (): Promise<boolean> => {
     console.error('Unexpected error testing Supabase connection:', error);
     toast.error('Error connecting to Supabase');
     return false;
+  }
+};
+
+export const testSP500DataTable = async (): Promise<{ success: boolean; data: SP500DataPoint[] }> => {
+  try {
+    console.log('Testing SP500_HIST_DATA table...');
+    
+    // Query the SP500_HIST_DATA table for a few records
+    const { data, error } = await supabase
+      .from('SP500_HIST_DATA')
+      .select('*')
+      .limit(1)
+      .order('DATE', { ascending: false });
+    
+    if (error) {
+      console.error('Error accessing SP500_HIST_DATA table:', error);
+      toast.error('Failed to access SP500 data table');
+      return { success: false, data: [] };
+    }
+    
+    if (data && data.length > 0) {
+      console.log('SP500_HIST_DATA table has records:', data);
+      toast.success('Successfully retrieved SP500 data');
+      return { success: true, data };
+    } else {
+      console.warn('SP500_HIST_DATA table exists but has no records');
+      toast.warning('SP500 data table exists but is empty');
+      return { success: true, data: [] };
+    }
+  } catch (error) {
+    console.error('Unexpected error testing SP500_HIST_DATA table:', error);
+    toast.error('Error accessing SP500 data table');
+    return { success: false, data: [] };
   }
 };
 
