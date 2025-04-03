@@ -10,6 +10,33 @@ export interface SP500DataPoint {
   LOW?: number;   // Make optional since they may be nullable
 }
 
+export const testSupabaseConnection = async (): Promise<boolean> => {
+  try {
+    console.log('Testing Supabase connection...');
+    
+    // Simple ping to the Supabase instance
+    const { data, error } = await supabase
+      .from('SP500_HIST_DATA')
+      .select('DATE')
+      .limit(1);
+    
+    if (error) {
+      console.error('Error connecting to Supabase:', error);
+      toast.error('Failed to connect to Supabase');
+      return false;
+    }
+    
+    console.log('Supabase connection successful!');
+    console.log('SP500_HIST_DATA table exists with data:', data);
+    toast.success('Successfully connected to Supabase');
+    return true;
+  } catch (error) {
+    console.error('Unexpected error testing Supabase connection:', error);
+    toast.error('Error connecting to Supabase');
+    return false;
+  }
+};
+
 export const fetchSP500Data = async (): Promise<SP500DataPoint[]> => {
   try {
     console.log('Fetching S&P 500 historical data from Supabase');

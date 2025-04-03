@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from '@/components/Header';
 import MarketBanner from '@/components/MarketBanner';
@@ -11,6 +12,7 @@ import SupabaseStatus from '@/components/SupabaseStatus';
 import VIXContangoTable from '@/components/VIXContangoTable';
 import CryptoWidget from '@/components/CryptoWidget';
 import SP500Chart from '@/components/SP500Chart';
+import SupabaseConnectionTest from '@/components/SupabaseConnectionTest';
 import { vixStatistics, marketSentiment, marketHeadlines } from '@/lib/mockData';
 import { fetchMarketIndices, setupMarketDataPolling, MarketIndex } from '@/services/marketDataService';
 import { scrapeHistoricalVIX, scrapeVIXFutures, VIXHistoricalDataPoint } from '@/services/vixScraperService';
@@ -394,6 +396,10 @@ const Index = () => {
       <MarketBanner isLoading={isLoading} />
       
       <main className="flex-1 p-6">
+        <div className="mb-6">
+          <SupabaseConnectionTest />
+        </div>
+        
         <div className="mb-4 flex flex-wrap gap-2">
           {isSupabaseConnected && (
             <div className="px-3 py-1 bg-positive/20 text-positive inline-flex items-center rounded-md text-sm">
