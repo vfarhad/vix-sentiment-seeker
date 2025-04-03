@@ -27,12 +27,12 @@ const SP500Chart: React.FC<SP500ChartProps> = ({ data }) => {
 
   // Calculate simple moving averages if we have enough data
   const chartDataWithSMA = useMemo(() => {
-    if (chartData.length < 10) return chartData;
+    if (chartData.length < 10) return chartData.map(point => ({ ...point, sma10: null, sma20: null }));
     
     // Calculate 10-day SMA (simple moving average)
     return chartData.map((point, index) => {
       if (index < 10) {
-        return { ...point, sma10: null };
+        return { ...point, sma10: null, sma20: null };
       }
 
       // Calculate average of last 10 days
