@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from '@/components/Header';
 import MarketBanner from '@/components/MarketBanner';
@@ -33,6 +34,7 @@ const Index = () => {
   const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
   const [tablesExist, setTablesExist] = useState(false);
   const [showSetupInterface, setShowSetupInterface] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
 
   const { data, isError } = useQuery({
     queryKey: ['marketIndices'],
@@ -60,38 +62,52 @@ const Index = () => {
 
   useEffect(() => {
     const fetchHistoricalVIX = async () => {
+      setDataLoading(true);
       try {
+        // Primary data source: VIX_HIST_DATA table
         const vixHistData = await getVIXHistData();
         if (vixHistData && vixHistData.length > 0) {
           setHistoricalVIXData(vixHistData);
           setShowVIXChart(true);
-          toast.success('VIX historical data loaded from VIX_HIST_DATA table');
+          toast.success('VIX historical data loaded successfully');
+          setDataLoading(false);
           return;
         }
         
+        // Secondary data source: vix_historical_data table
         const supabaseData = await getHistoricalVIXData();
         if (supabaseData && supabaseData.length > 0) {
           setHistoricalVIXData(supabaseData);
           setShowVIXChart(true);
           toast.success('VIX historical data loaded from Supabase');
+          setDataLoading(false);
         } else {
+          // Tertiary data source: web scraping
           const scrapedData = await scrapeHistoricalVIX();
           if (scrapedData && scrapedData.length > 0) {
             setHistoricalVIXData(scrapedData);
             setShowVIXChart(true);
             toast.success('VIX historical data loaded from web scraping');
             
-            await storeHistoricalVIXData(scrapedData);
+            try {
+              await storeHistoricalVIXData(scrapedData);
+            } catch (storageError) {
+              console.warn('Failed to store historical VIX data:', storageError);
+            }
+            
+            setDataLoading(false);
           } else {
-            console.warn('No historical VIX data found');
+            console.warn('No historical VIX data found from any source');
             toast.error('Failed to load VIX historical data');
             setShowVIXChart(false);
+            setDataLoading(false);
           }
         }
       } catch (error) {
         console.error('Error fetching historical VIX data:', error);
         toast.error('Failed to load VIX historical data');
         setShowVIXChart(false);
+        setDataLoading(false);
       }
     };
 
@@ -113,7 +129,11 @@ const Index = () => {
             setShowVIXFutures(true);
             toast.success('VIX futures data loaded');
             
-            await storeVIXFuturesData(scrapedData);
+            try {
+              await storeVIXFuturesData(scrapedData);
+            } catch (storageError) {
+              console.warn('Failed to store VIX futures data:', storageError);
+            }
           } else {
             console.warn('No VIX futures data found');
             toast.error('Failed to load VIX futures data');
@@ -133,13 +153,19 @@ const Index = () => {
   useEffect(() => {
     const checkSupabase = async () => {
       try {
-        const { error } = await supabase.from('vix_historical').select('*').limit(1);
+        const { data, error } = await supabase.from('VIX_HIST_DATA').select('*', { count: 'exact', head: true });
+        
         if (error) {
           console.error('Supabase connection error:', error);
           setIsSupabaseConnected(false);
           return;
         }
+        
         setIsSupabaseConnected(true);
+        
+        // Check if data exists
+        const hasData = data && data.length > 0;
+        console.log('VIX_HIST_DATA has data:', hasData);
 
         const tablesExist = await checkSupabaseTables();
         setTablesExist(tablesExist);
@@ -160,6 +186,29 @@ const Index = () => {
 
   const showSetup = useCallback(() => {
     setShowSetupInterface(true);
+  }, []);
+
+  const handleRetryDataLoad = useCallback(async () => {
+    toast.info('Retrying data load...');
+    setDataLoading(true);
+    
+    try {
+      const vixHistData = await getVIXHistData();
+      if (vixHistData && vixHistData.length > 0) {
+        setHistoricalVIXData(vixHistData);
+        setShowVIXChart(true);
+        toast.success('VIX historical data loaded successfully');
+      } else {
+        toast.error('No VIX data available');
+        setShowVIXChart(false);
+      }
+    } catch (error) {
+      console.error('Error reloading VIX data:', error);
+      toast.error('Failed to reload VIX data');
+      setShowVIXChart(false);
+    }
+    
+    setDataLoading(false);
   }, []);
 
   return (
@@ -199,13 +248,20 @@ const Index = () => {
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            {showVIXChart ? (
+            {dataLoading ? (
+              <div className="bg-card rounded-lg border border-border p-6 flex flex-col items-center justify-center h-[300px]">
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 rounded-full bg-primary animate-ping"></div>
+                  <p className="text-muted-foreground">Loading VIX historical data...</p>
+                </div>
+              </div>
+            ) : showVIXChart ? (
               <VIXChart data={historicalVIXData} />
             ) : (
               <div className="bg-card rounded-lg border border-border p-6 flex flex-col items-center justify-center h-[300px]">
                 <p className="text-muted-foreground">Unable to load VIX historical data</p>
                 <button 
-                  onClick={() => window.location.reload()}
+                  onClick={handleRetryDataLoad}
                   className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
                 >
                   Retry

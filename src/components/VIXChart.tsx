@@ -49,6 +49,9 @@ const VIXChart = ({ data, className }: VIXChartProps) => {
     );
   }
   
+  // Sort data by date to ensure correct chronological display
+  validData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  
   // Calculate average for reference line
   const averageVIX = validData.reduce((acc, item) => acc + item.value, 0) / validData.length;
   
