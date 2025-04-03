@@ -1,196 +1,210 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  ReferenceLine,
-  Area,
-  ComposedChart
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
+  ResponsiveContainer, Legend, ReferenceLine
 } from 'recharts';
+import { TrendingUp, TrendingDown } from 'lucide-react';
+import { SP500DataPoint } from '@/services/sp500/sp500DataService';
 
 interface SP500ChartProps {
-  data: Array<{ date: string; value: number }>;
-  className?: string;
+  data: SP500DataPoint[];
 }
 
-const SP500Chart = ({ data, className }: SP500ChartProps) => {
-  // Check if data is valid
+const SP500Chart: React.FC<SP500ChartProps> = ({ data }) => {
+  // Format data for the chart
+  const chartData = useMemo(() => {
+    return data.map((point) => ({
+      date: new Date(point.DATE).toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric' 
+      }),
+      close: point.CLOSE,
+      dateObj: new Date(point.DATE), // Keep date object for calculations
+    }));
+  }, [data]);
+
+  // Calculate simple moving averages if we have enough data
+  const chartDataWithSMA = useMemo(() => {
+    if (chartData.length < 10) return chartData;
+    
+    // Calculate 10-day SMA (simple moving average)
+    return chartData.map((point, index) => {
+      if (index < 10) {
+        return { ...point, sma10: null };
+      }
+
+      // Calculate average of last 10 days
+      const sum10 = chartData
+        .slice(index - 10, index)
+        .reduce((acc, curr) => acc + curr.close, 0);
+      
+      // Calculate average of last 20 days
+      const sum20 = index >= 20 
+        ? chartData
+            .slice(index - 20, index)
+            .reduce((acc, curr) => acc + curr.close, 0)
+        : 0;
+      
+      return { 
+        ...point, 
+        sma10: sum10 / 10,
+        sma20: index >= 20 ? sum20 / 20 : null 
+      };
+    });
+  }, [chartData]);
+
+  // Calculate overall trend (is market up or down)
+  const trend = useMemo(() => {
+    if (chartData.length < 2) return { isUp: false, percent: 0 };
+    
+    const firstPrice = chartData[0].close;
+    const lastPrice = chartData[chartData.length - 1].close;
+    const percentChange = ((lastPrice - firstPrice) / firstPrice) * 100;
+    
+    return {
+      isUp: percentChange > 0,
+      percent: Math.abs(percentChange).toFixed(2)
+    };
+  }, [chartData]);
+
   if (!data || data.length === 0) {
     return (
-      <div className={`chart-container ${className}`}>
-        <h2 className="text-lg font-semibold mb-4">S&P 500 - 60 Days</h2>
-        <div className="h-[300px] flex items-center justify-center bg-card rounded-lg border border-border">
+      <Card>
+        <CardHeader>
+          <CardTitle>S&P 500 Historical Data</CardTitle>
+        </CardHeader>
+        <CardContent className="h-[300px] flex items-center justify-center">
           <p className="text-muted-foreground">No S&P 500 data available</p>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     );
   }
-  
-  console.log('Rendering S&P 500 chart with data:', data.slice(0, 5), '... (total:', data.length, 'points)');
-  
-  // Filter out any invalid data points
-  const validData = data.filter(item => 
-    item.date && !isNaN(item.value) && item.value !== null && item.value !== undefined
-  );
-  
-  if (validData.length === 0) {
-    return (
-      <div className={`chart-container ${className}`}>
-        <h2 className="text-lg font-semibold mb-4">S&P 500 - 60 Days</h2>
-        <div className="h-[300px] flex items-center justify-center bg-card rounded-lg border border-border">
-          <p className="text-muted-foreground">Invalid S&P 500 data format</p>
-        </div>
-      </div>
-    );
-  }
-  
-  // Sort data by date to ensure correct chronological display
-  validData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  
-  // Calculate average for reference line
-  const averageSP = validData.reduce((acc, item) => acc + item.value, 0) / validData.length;
-  
-  // Format the date to be more readable
-  const formatDate = (dateString: string) => {
-    if (!dateString) return '';
-    try {
-      const date = new Date(dateString);
-      return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear().toString().substr(2, 2)}`;
-    } catch (e) {
-      console.error('Error formatting date:', dateString, e);
-      return dateString;
-    }
-  };
-  
-  // Find min and max values to set chart domain with some padding
-  const minValue = Math.floor(Math.min(...validData.map(item => item.value)) * 0.95);
-  const maxValue = Math.ceil(Math.max(...validData.map(item => item.value)) * 1.05);
-  
-  // Custom tooltip
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const spValue = payload[0].value;
-      
-      return (
-        <div className="bg-card p-3 border border-border rounded shadow-md">
-          <p className="text-sm font-medium">{new Date(label).toLocaleDateString()}</p>
-          <p className="text-sm text-primary">
-            <span className="font-medium">S&P 500: </span> 
-            {spValue.toFixed(2)}
-          </p>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  // Calculate 50-day moving average
-  const calculateMA = (data: any[], days: number) => {
-    const result = [];
-    for (let i = 0; i < data.length; i++) {
-      if (i < days - 1) {
-        result.push(null);
-        continue;
-      }
-      
-      let sum = 0;
-      for (let j = 0; j < days; j++) {
-        sum += data[i - j].value;
-      }
-      result.push(parseFloat((sum / days).toFixed(2)));
-    }
-    return result;
-  };
-  
-  // Add moving average to data
-  // For a 60-day chart, use a shorter MA period like 20 days instead of 50
-  const maDays = Math.min(20, Math.floor(validData.length / 3));
-  const maData = calculateMA(validData, maDays);
-  const dataWithMA = validData.map((item, i) => ({
-    ...item,
-    ma50: maData[i]
-  }));
 
   return (
-    <div className={`chart-container ${className}`}>
-      <h2 className="text-lg font-semibold mb-4">S&P 500 - 60 Days</h2>
-      <div className="text-sm text-muted-foreground mb-2">
-        Showing close values for the last {validData.length} days
-      </div>
-      <div className="h-[300px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart
-            data={dataWithMA}
-            margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-          >
-            <defs>
-              <linearGradient id="colorSP" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
-                <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
-            <XAxis 
-              dataKey="date" 
-              stroke="#64748B" 
-              tickFormatter={formatDate} 
-              tick={{ fontSize: 12 }}
-            />
-            <YAxis 
-              domain={[minValue, maxValue]} 
-              stroke="#64748B"
-              tick={{ fontSize: 12 }}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <ReferenceLine 
-              y={averageSP} 
-              stroke="#94A3B8" 
-              strokeDasharray="3 3" 
-              label={{ 
-                value: `Avg: ${averageSP.toFixed(2)}`, 
-                position: 'right',
-                fill: '#94A3B8',
-                fontSize: 12
-              }} 
-            />
-            <Area
-              type="monotone"
-              dataKey="value"
-              stroke="#10B981"
-              fillOpacity={1}
-              fill="url(#colorSP)"
-            />
-            <Line
-              type="monotone"
-              dataKey="ma50"
-              stroke="#0EA5E9"
-              strokeWidth={2}
-              dot={false}
-              name={`${maDays}-day MA`}
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="flex justify-between text-xs text-muted-foreground mt-2">
-        <span>{formatDate(validData[0]?.date)}</span>
-        <div className="flex space-x-4">
-          <div className="flex items-center">
-            <div className="w-3 h-3 rounded-full mr-1 bg-positive"></div>
-            <span>S&P 500</span>
-          </div>
-          <div className="flex items-center">
-            <div className="w-3 h-3 rounded-full mr-1 bg-blue-500"></div>
-            <span>{maDays}-day MA</span>
-          </div>
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex justify-between items-center">
+          <CardTitle className="flex items-center">
+            S&P 500 Historical Data
+            <span 
+              className={`ml-2 px-2 py-1 text-xs rounded-full inline-flex items-center
+                ${trend.isUp 
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}
+            >
+              {trend.isUp ? 
+                <TrendingUp className="w-3 h-3 mr-1" /> : 
+                <TrendingDown className="w-3 h-3 mr-1" />
+              }
+              {trend.isUp ? '+' : '-'}{trend.percent}%
+            </span>
+          </CardTitle>
         </div>
-        <span>{formatDate(validData[validData.length - 1]?.date)}</span>
-      </div>
-    </div>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="price" className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="price">Price</TabsTrigger>
+            <TabsTrigger value="moving-averages">Moving Averages</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="price" className="space-y-4">
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={chartData}
+                  margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="date" 
+                    tick={{ fontSize: 12 }}
+                    interval={Math.ceil(chartData.length / 15)}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis 
+                    domain={['auto', 'auto']}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <Tooltip formatter={(value) => [`$${value}`, 'S&P 500']} />
+                  <Legend />
+                  <Line
+                    name="S&P 500"
+                    type="monotone"
+                    dataKey="close"
+                    stroke="#8884d8"
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 5 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="moving-averages">
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={chartDataWithSMA}
+                  margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="date" 
+                    tick={{ fontSize: 12 }}
+                    interval={Math.ceil(chartData.length / 15)}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis 
+                    domain={['auto', 'auto']}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <Tooltip 
+                    formatter={(value) => [`$${parseFloat(value).toFixed(2)}`, 'S&P 500']} 
+                  />
+                  <Legend />
+                  <Line
+                    name="S&P 500"
+                    type="monotone"
+                    dataKey="close"
+                    stroke="#8884d8"
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 5 }}
+                  />
+                  <Line
+                    name="10-Day SMA"
+                    type="monotone"
+                    dataKey="sma10"
+                    stroke="#82ca9d"
+                    strokeWidth={1.5}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                  />
+                  <Line
+                    name="20-Day SMA"
+                    type="monotone"
+                    dataKey="sma20"
+                    stroke="#ff7300"
+                    strokeWidth={1.5}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 };
 
