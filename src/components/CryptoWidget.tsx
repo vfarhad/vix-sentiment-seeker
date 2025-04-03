@@ -10,7 +10,7 @@ const CryptoWidget = () => {
         height="100%" 
         frameBorder="0" 
         allowTransparency={true} 
-        style={{ marginWidth: 0, marginHeight: 0 }}
+        style={{ margin: 0 }}
       ></iframe>
       <div 
         className="poweredBy text-xs text-muted-foreground p-1" 
