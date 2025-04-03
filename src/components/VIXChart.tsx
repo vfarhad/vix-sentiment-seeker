@@ -83,6 +83,9 @@ const VIXChart = ({ data, className }: VIXChartProps) => {
   return (
     <div className={`chart-container ${className}`}>
       <h2 className="text-lg font-semibold mb-4">VIX Historical Chart</h2>
+      <div className="text-sm text-muted-foreground mb-2">
+        Showing close values for the last {data.length} days
+      </div>
       <div className="h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart

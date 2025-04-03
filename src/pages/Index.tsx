@@ -16,7 +16,8 @@ import {
   getHistoricalVIXData, 
   storeVIXFuturesData, 
   getLatestVIXFuturesData,
-  checkSupabaseTables
+  checkSupabaseTables,
+  getVIXHistData
 } from '@/services/vixDataService';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -33,11 +34,10 @@ const Index = () => {
   const [tablesExist, setTablesExist] = useState(false);
   const [showSetupInterface, setShowSetupInterface] = useState(false);
 
-  // Use react-query to fetch market data
   const { data, isError } = useQuery({
     queryKey: ['marketIndices'],
     queryFn: fetchMarketIndices,
-    refetchInterval: 60000, // Refetch every minute
+    refetchInterval: 60000,
   });
 
   useEffect(() => {
@@ -48,7 +48,6 @@ const Index = () => {
   }, [data]);
 
   useEffect(() => {
-    // Fallback if react-query fails
     if (isError) {
       const cleanup = setupMarketDataPolling((newData) => {
         setMarketIndices(newData);
@@ -59,25 +58,29 @@ const Index = () => {
     }
   }, [isError]);
 
-  // Fetch VIX historical data
   useEffect(() => {
     const fetchHistoricalVIX = async () => {
       try {
-        // Try to get data from Supabase first
+        const vixHistData = await getVIXHistData();
+        if (vixHistData && vixHistData.length > 0) {
+          setHistoricalVIXData(vixHistData);
+          setShowVIXChart(true);
+          toast.success('VIX historical data loaded from VIX_HIST_DATA table');
+          return;
+        }
+        
         const supabaseData = await getHistoricalVIXData();
         if (supabaseData && supabaseData.length > 0) {
           setHistoricalVIXData(supabaseData);
           setShowVIXChart(true);
           toast.success('VIX historical data loaded from Supabase');
         } else {
-          // If no data in Supabase, scrape it
           const scrapedData = await scrapeHistoricalVIX();
           if (scrapedData && scrapedData.length > 0) {
             setHistoricalVIXData(scrapedData);
             setShowVIXChart(true);
-            toast.success('VIX historical data loaded');
+            toast.success('VIX historical data loaded from web scraping');
             
-            // Store the scraped data in Supabase for next time
             await storeHistoricalVIXData(scrapedData);
           } else {
             console.warn('No historical VIX data found');
@@ -95,25 +98,21 @@ const Index = () => {
     fetchHistoricalVIX();
   }, []);
 
-  // Fetch VIX futures data
   useEffect(() => {
     const fetchVIXFutures = async () => {
       try {
-        // Try to get data from Supabase first
         const supabaseData = await getLatestVIXFuturesData();
         if (supabaseData && supabaseData.length > 0) {
           setVIXFuturesValues(supabaseData);
           setShowVIXFutures(true);
           toast.success('VIX futures data loaded from Supabase');
         } else {
-          // If no data in Supabase, scrape it
           const scrapedData = await scrapeVIXFutures();
           if (scrapedData && scrapedData.length > 0) {
             setVIXFuturesValues(scrapedData);
             setShowVIXFutures(true);
             toast.success('VIX futures data loaded');
             
-            // Store the scraped data in Supabase for next time
             await storeVIXFuturesData(scrapedData);
           } else {
             console.warn('No VIX futures data found');
@@ -131,11 +130,9 @@ const Index = () => {
     fetchVIXFutures();
   }, []);
 
-  // Check Supabase connection and table existence
   useEffect(() => {
     const checkSupabase = async () => {
       try {
-        // Check Supabase connection
         const { error } = await supabase.from('vix_historical').select('*').limit(1);
         if (error) {
           console.error('Supabase connection error:', error);
@@ -144,7 +141,6 @@ const Index = () => {
         }
         setIsSupabaseConnected(true);
 
-        // Check if tables exist
         const tablesExist = await checkSupabaseTables();
         setTablesExist(tablesExist);
       } catch (error) {
@@ -156,25 +152,22 @@ const Index = () => {
     checkSupabase();
   }, []);
 
-  // Callback for when the Supabase setup is complete
   const handleSetupComplete = useCallback(() => {
     setTablesExist(true);
     setShowSetupInterface(false);
     toast.success('Supabase setup complete!');
   }, []);
 
-  // Callback to show setup interface
   const showSetup = useCallback(() => {
     setShowSetupInterface(true);
   }, []);
-  
+
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <Header />
       <MarketBanner indices={marketIndices} isLoading={isLoading} />
       
       <main className="flex-1 p-6">
-        {/* Database connection status */}
         <div className="mb-4 flex flex-wrap gap-2">
           {isSupabaseConnected && (
             <div className="px-3 py-1 bg-positive/20 text-positive inline-flex items-center rounded-md text-sm">
@@ -198,7 +191,6 @@ const Index = () => {
           )}
         </div>
         
-        {/* Database setup interface */}
         {showSetupInterface && (
           <div className="mb-6">
             <SupabaseSetup onSetupComplete={handleSetupComplete} />
@@ -206,7 +198,6 @@ const Index = () => {
         )}
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main chart area */}
           <div className="lg:col-span-2 space-y-6">
             {showVIXChart ? (
               <VIXChart data={historicalVIXData} />
@@ -222,7 +213,6 @@ const Index = () => {
               </div>
             )}
             
-            {/* VIX Futures Chart */}
             {showVIXFutures ? (
               <VIXFuturesChart data={vixFuturesValues} />
             ) : (
@@ -237,7 +227,6 @@ const Index = () => {
               </div>
             )}
             
-            {/* Stats row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               {vixStatistics.map((stat, index) => (
                 <StatisticCard
@@ -253,21 +242,18 @@ const Index = () => {
             </div>
           </div>
           
-          {/* Sidebar */}
           <div className="space-y-6">
             <SentimentIndicator 
               sentiment={marketSentiment.current as 'bullish' | 'bearish' | 'neutral'} 
               strength={marketSentiment.strength as 'strong' | 'moderate' | 'weak'} 
             />
             
-            {/* Supabase Status */}
             <SupabaseStatus 
               isConnected={isSupabaseConnected}
               tablesExist={tablesExist}
               onSetupClick={showSetup}
             />
             
-            {/* Market headlines */}
             <div className="bg-card rounded-lg border border-border p-4">
               <h2 className="text-lg font-semibold mb-4">Market Headlines</h2>
               <div className="space-y-4">

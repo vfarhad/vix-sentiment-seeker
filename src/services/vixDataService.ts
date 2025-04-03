@@ -1,4 +1,3 @@
-
 import { supabase } from '@/lib/supabase';
 import { VIXHistoricalDataPoint, VIXFuturesDataPoint } from './vixScraperService';
 import { toast } from 'sonner';
@@ -15,15 +14,21 @@ export const checkSupabaseTables = async (): Promise<boolean> => {
       .from('vix_futures_data')
       .select('month', { count: 'exact', head: true });
       
+    const { error: vixHistDataError } = await supabase
+      .from('VIX_HIST_DATA')
+      .select('date', { count: 'exact', head: true });
+      
     // If either query produced a PostgreSQL error about the relation not existing,
     // the tables don't exist
     const historicalTableMissing = historicalError?.code === '42P01'; // PostgreSQL code for undefined_table
     const futuresTableMissing = futuresError?.code === '42P01';
+    const vixHistDataMissing = vixHistDataError?.code === '42P01';
     
-    if (historicalTableMissing || futuresTableMissing) {
+    if (historicalTableMissing || futuresTableMissing || vixHistDataMissing) {
       const missingTables = [];
       if (historicalTableMissing) missingTables.push('vix_historical_data');
       if (futuresTableMissing) missingTables.push('vix_futures_data');
+      if (vixHistDataMissing) missingTables.push('VIX_HIST_DATA');
       
       console.error(`Required Supabase tables missing: ${missingTables.join(', ')}`);
       toast.error(`Please create the tables: ${missingTables.join(', ')}`);
@@ -90,6 +95,48 @@ export const getHistoricalVIXData = async (): Promise<VIXHistoricalDataPoint[]> 
     })) || [];
   } catch (error) {
     console.error('Error fetching VIX historical data:', error);
+    throw error;
+  }
+};
+
+// Get VIX historical data from VIX_HIST_DATA table
+export const getVIXHistData = async (): Promise<VIXHistoricalDataPoint[]> => {
+  try {
+    // Get the current date
+    const today = new Date();
+    
+    // Calculate date 30 days ago
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    
+    // Format the date to ISO string for Supabase query
+    const fromDate = thirtyDaysAgo.toISOString().split('T')[0];
+    
+    console.log(`Fetching VIX_HIST_DATA from ${fromDate} to now`);
+    
+    const { data, error } = await supabase
+      .from('VIX_HIST_DATA')
+      .select('date, close')
+      .gte('date', fromDate)
+      .order('date', { ascending: true });
+      
+    if (error) {
+      // Check if this is a 'relation does not exist' error
+      if (error.code === '42P01') {
+        toast.error('Table VIX_HIST_DATA does not exist in Supabase');
+        return [];
+      }
+      throw error;
+    }
+    
+    console.log(`Retrieved ${data?.length || 0} records from VIX_HIST_DATA`);
+    
+    return data?.map(item => ({
+      date: item.date,
+      value: item.close
+    })) || [];
+  } catch (error) {
+    console.error('Error fetching VIX historical data from VIX_HIST_DATA:', error);
     throw error;
   }
 };
