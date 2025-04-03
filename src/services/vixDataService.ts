@@ -1,3 +1,4 @@
+
 import { supabase } from '@/lib/supabase';
 import { VIXHistoricalDataPoint, VIXFuturesDataPoint } from './vixScraperService';
 import { toast } from 'sonner';
@@ -16,7 +17,7 @@ export const checkSupabaseTables = async (): Promise<boolean> => {
       
     const { error: vixHistDataError } = await supabase
       .from('VIX_HIST_DATA')
-      .select('date', { count: 'exact', head: true });
+      .select('id', { count: 'exact', head: true });
       
     // If either query produced a PostgreSQL error about the relation not existing,
     // the tables don't exist
@@ -114,11 +115,12 @@ export const getVIXHistData = async (): Promise<VIXHistoricalDataPoint[]> => {
     
     console.log(`Fetching VIX_HIST_DATA from ${fromDate} to now`);
     
+    // Query using the actual column names from the database
     const { data, error } = await supabase
       .from('VIX_HIST_DATA')
-      .select('date, close')
-      .gte('date', fromDate)
-      .order('date', { ascending: true });
+      .select('*')
+      .gte('DATE', fromDate)
+      .order('DATE', { ascending: true });
       
     if (error) {
       // Check if this is a 'relation does not exist' error
@@ -129,11 +131,12 @@ export const getVIXHistData = async (): Promise<VIXHistoricalDataPoint[]> => {
       throw error;
     }
     
-    console.log(`Retrieved ${data?.length || 0} records from VIX_HIST_DATA`);
+    console.log(`Retrieved ${data?.length || 0} records from VIX_HIST_DATA`, data);
     
+    // Map the data to match the expected structure, using uppercase column names
     return data?.map(item => ({
-      date: item.date,
-      value: item.close
+      date: item.DATE,
+      value: item.CLOSE
     })) || [];
   } catch (error) {
     console.error('Error fetching VIX historical data from VIX_HIST_DATA:', error);
