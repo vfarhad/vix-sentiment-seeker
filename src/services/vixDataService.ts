@@ -115,6 +115,24 @@ export const getVIXHistData = async (): Promise<VIXHistoricalDataPoint[]> => {
     
     console.log(`Fetching VIX_HIST_DATA from ${fromDate} to now`);
     
+    // First check if the VIX_HIST_DATA table exists and has data
+    const { count, error: countError } = await supabase
+      .from('VIX_HIST_DATA')
+      .select('*', { count: 'exact', head: true });
+    
+    if (countError) {
+      console.error('Error checking VIX_HIST_DATA table:', countError);
+      toast.error('Error checking VIX_HIST_DATA table');
+      return [];
+    }
+    
+    console.log(`VIX_HIST_DATA table contains ${count} records`);
+    
+    if (count === 0) {
+      toast.error('No data found in VIX_HIST_DATA table');
+      return [];
+    }
+    
     // Query using the actual column names from the database
     const { data, error } = await supabase
       .from('VIX_HIST_DATA')
@@ -128,18 +146,35 @@ export const getVIXHistData = async (): Promise<VIXHistoricalDataPoint[]> => {
         toast.error('Table VIX_HIST_DATA does not exist in Supabase');
         return [];
       }
-      throw error;
+      console.error('Error fetching data from VIX_HIST_DATA:', error);
+      toast.error(`Failed to fetch VIX data: ${error.message}`);
+      return [];
     }
     
-    console.log(`Retrieved ${data?.length || 0} records from VIX_HIST_DATA`, data);
+    console.log(`Retrieved ${data?.length || 0} records from VIX_HIST_DATA:`, data);
+    
+    if (!data || data.length === 0) {
+      toast.error('No VIX data found for the last 30 days');
+      return [];
+    }
+    
+    // Log the first item to inspect its structure
+    if (data && data.length > 0) {
+      console.log('First data item structure:', JSON.stringify(data[0], null, 2));
+    }
     
     // Map the data to match the expected structure, using uppercase column names
-    return data?.map(item => ({
+    const mappedData = data.map(item => ({
       date: item.DATE,
-      value: item.CLOSE
-    })) || [];
+      value: parseFloat(item.CLOSE) 
+    }));
+    
+    console.log('Mapped data:', mappedData);
+    
+    return mappedData;
   } catch (error) {
     console.error('Error fetching VIX historical data from VIX_HIST_DATA:', error);
+    toast.error('Failed to load VIX historical data');
     throw error;
   }
 };

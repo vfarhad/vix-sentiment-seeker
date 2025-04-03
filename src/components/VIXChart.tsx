@@ -19,8 +19,38 @@ interface VIXChartProps {
 }
 
 const VIXChart = ({ data, className }: VIXChartProps) => {
+  // Check if data is valid
+  if (!data || data.length === 0) {
+    return (
+      <div className={`chart-container ${className}`}>
+        <h2 className="text-lg font-semibold mb-4">VIX Historical Chart</h2>
+        <div className="h-[300px] flex items-center justify-center bg-card rounded-lg border border-border">
+          <p className="text-muted-foreground">No VIX data available</p>
+        </div>
+      </div>
+    );
+  }
+  
+  console.log('Rendering VIX chart with data:', data);
+  
+  // Filter out any invalid data points
+  const validData = data.filter(item => 
+    item.date && !isNaN(item.value) && item.value !== null && item.value !== undefined
+  );
+  
+  if (validData.length === 0) {
+    return (
+      <div className={`chart-container ${className}`}>
+        <h2 className="text-lg font-semibold mb-4">VIX Historical Chart</h2>
+        <div className="h-[300px] flex items-center justify-center bg-card rounded-lg border border-border">
+          <p className="text-muted-foreground">Invalid VIX data format</p>
+        </div>
+      </div>
+    );
+  }
+  
   // Calculate average for reference line
-  const averageVIX = data.reduce((acc, item) => acc + item.value, 0) / data.length;
+  const averageVIX = validData.reduce((acc, item) => acc + item.value, 0) / validData.length;
   
   // Define VIX fear levels
   const lowFearThreshold = 20;
@@ -28,13 +58,19 @@ const VIXChart = ({ data, className }: VIXChartProps) => {
   
   // Format the date to be more readable
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return `${date.getMonth() + 1}/${date.getDate()}`;
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      return `${date.getMonth() + 1}/${date.getDate()}`;
+    } catch (e) {
+      console.error('Error formatting date:', dateString, e);
+      return dateString;
+    }
   };
   
   // Find min and max values to set chart domain
-  const minValue = Math.floor(Math.min(...data.map(item => item.value)) * 0.9);
-  const maxValue = Math.ceil(Math.max(...data.map(item => item.value)) * 1.1);
+  const minValue = Math.floor(Math.min(...validData.map(item => item.value)) * 0.9);
+  const maxValue = Math.ceil(Math.max(...validData.map(item => item.value)) * 1.1);
   
   // Custom tooltip
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -75,7 +111,7 @@ const VIXChart = ({ data, className }: VIXChartProps) => {
   };
 
   // Process data to include color
-  const processedData = data.map(item => ({
+  const processedData = validData.map(item => ({
     ...item,
     color: getFillColor(item.value)
   }));
@@ -84,7 +120,7 @@ const VIXChart = ({ data, className }: VIXChartProps) => {
     <div className={`chart-container ${className}`}>
       <h2 className="text-lg font-semibold mb-4">VIX Historical Chart</h2>
       <div className="text-sm text-muted-foreground mb-2">
-        Showing close values for the last {data.length} days
+        Showing close values for the last {validData.length} days
       </div>
       <div className="h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -136,6 +172,7 @@ const VIXChart = ({ data, className }: VIXChartProps) => {
               stroke="#3B82F6"
               dot={(props) => {
                 const { cx, cy, payload } = props;
+                if (!cx || !cy || !payload) return null;
                 const value = payload.value;
                 const color = getFillColor(value);
                 return (
