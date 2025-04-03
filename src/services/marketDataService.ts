@@ -4,6 +4,7 @@ import { MarketIndex, MarketStatus, HistoricalData, SearchResult, FMPHistoricalD
 import { generateFallbackData, generateAllFallbackData } from './fallbackDataService';
 import { fetchFMPQuote, fetchFMPHistoricalData, fetchFMPMarketStatus } from './fmpAPIService';
 import { transformFMPData } from './dataTransformService';
+import { scrapeYahooFinanceMarkets } from './scrapers/yahooFinanceMarketsScraper';
 
 // Export MarketIndex type for use in components
 export type { MarketIndex } from '@/types/marketData';
@@ -11,6 +12,26 @@ export type { MarketIndex } from '@/types/marketData';
 // Fetch market indices data
 export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
   try {
+    // Try Yahoo Finance markets page first
+    console.log("Attempting to fetch market data from Yahoo Finance markets page");
+    const yahooMarketsData = await scrapeYahooFinanceMarkets();
+    
+    if (yahooMarketsData && yahooMarketsData.length > 0) {
+      console.log("Successfully loaded market data from Yahoo Finance markets page");
+      toast.success('Live market data loaded from Yahoo Finance');
+      
+      // Transform Yahoo data to MarketIndex format
+      return yahooMarketsData.map(index => ({
+        name: index.name,
+        value: index.name === "VIX" ? index.value.toFixed(2) : index.value.toLocaleString(),
+        change: index.change.toFixed(2),
+        changePercent: `${index.changePercent.toFixed(2)}%`
+      }));
+    }
+    
+    // Fall back to FMP API if Yahoo fails
+    console.log("Yahoo Finance data unavailable, falling back to FMP API");
+    
     // Define indices to fetch with their symbols
     const indices = [
       { symbol: "SPY", name: "S&P 500" },   // S&P 500 ETF
@@ -74,7 +95,7 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
     
     return results;
   } catch (error) {
-    console.error('Error fetching market data from FMP:', error);
+    console.error('Error fetching market data:', error);
     toast.info('Using simulated market data');
     
     // Generate complete simulated data as fallback
