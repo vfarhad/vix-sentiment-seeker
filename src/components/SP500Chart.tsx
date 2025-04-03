@@ -131,7 +131,9 @@ const SP500Chart: React.FC<SP500ChartProps> = ({ data }) => {
                     domain={['auto', 'auto']}
                     tick={{ fontSize: 12 }}
                   />
-                  <Tooltip formatter={(value) => [`$${value}`, 'S&P 500']} />
+                  <Tooltip 
+                    formatter={(value: number) => [`$${value}`, 'S&P 500']} 
+                  />
                   <Legend />
                   <Line
                     name="S&P 500"
@@ -168,7 +170,10 @@ const SP500Chart: React.FC<SP500ChartProps> = ({ data }) => {
                     tick={{ fontSize: 12 }}
                   />
                   <Tooltip 
-                    formatter={(value) => [`$${parseFloat(value).toFixed(2)}`, 'S&P 500']} 
+                    formatter={(value: number | null) => {
+                      if (value === null) return ['-', ''];
+                      return [`$${parseFloat(String(value)).toFixed(2)}`, 'S&P 500'];
+                    }} 
                   />
                   <Legend />
                   <Line
