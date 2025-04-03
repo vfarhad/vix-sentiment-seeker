@@ -6,14 +6,16 @@ import {
   calculateVIXTermStructure,
   getLatestVIXTermStructure,
   calculateContangoMetrics,
-  VIXTermStructurePoint
 } from './vixTermStructureService';
 
+// Export types with 'export type' syntax for isolatedModules compatibility
+export type { VIXTermStructurePoint } from './types';
+
+// Export functions
 export {
   fetchSP500Data,
   getVIXFuturesHistData,
   calculateVIXTermStructure,
   getLatestVIXTermStructure,
-  calculateContangoMetrics,
-  VIXTermStructurePoint
+  calculateContangoMetrics
 };

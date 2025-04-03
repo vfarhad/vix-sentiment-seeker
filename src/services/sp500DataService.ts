@@ -6,9 +6,11 @@ import {
   getVIXFuturesHistData, 
   calculateVIXTermStructure, 
   getLatestVIXTermStructure, 
-  calculateContangoMetrics,
-  VIXTermStructurePoint
+  calculateContangoMetrics
 } from './sp500/index';
+
+// Import types with proper syntax for isolatedModules
+import type { VIXTermStructurePoint } from './sp500/types';
 
 // Re-export everything to maintain backward compatibility
 export { 
@@ -16,6 +18,8 @@ export {
   getVIXFuturesHistData, 
   calculateVIXTermStructure, 
   getLatestVIXTermStructure, 
-  calculateContangoMetrics,
-  VIXTermStructurePoint
+  calculateContangoMetrics
 };
+
+// Re-export types with proper syntax
+export type { VIXTermStructurePoint };

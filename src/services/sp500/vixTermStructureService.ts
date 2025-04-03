@@ -1,18 +1,16 @@
 
 import { toast } from 'sonner';
-import { VIXTermStructurePoint } from './types';
 import { scrapeVIXFutures } from '../vixScraperService';
 import { processTermStructureData, calculateImpliedForwardVIX, calculateConstantMaturityVIX } from './termStructureCalculations';
 import { storeTermStructureData, getLatestVIXTermStructure as fetchLatestVIXTermStructure } from './supabaseService';
 import { calculateContangoMetrics } from './contangoMetricsService';
 
-// Export the types
-export { VIXTermStructurePoint };
+// Export types and functions
+export type { VIXTermStructurePoint } from './types';
 export { calculateContangoMetrics };
-export { getLatestVIXTermStructure };
 
 // Calculate VIX term structure and store in Supabase
-export const calculateVIXTermStructure = async (): Promise<VIXTermStructurePoint[]> => {
+export const calculateVIXTermStructure = async () => {
   try {
     const futuresData = await scrapeVIXFutures();
     if (!futuresData || futuresData.length < 2) {
@@ -22,7 +20,7 @@ export const calculateVIXTermStructure = async (): Promise<VIXTermStructurePoint
 
     const today = new Date();
     const calculationDate = today.toISOString().split('T')[0];
-    const resultData: VIXTermStructurePoint[] = [];
+    const resultData = [];
 
     // Process base term structure data (spot and futures)
     const processedData = processTermStructureData(futuresData, calculationDate);
@@ -50,7 +48,8 @@ export const calculateVIXTermStructure = async (): Promise<VIXTermStructurePoint
 };
 
 // Get latest VIX term structure from Supabase
-export const getLatestVIXTermStructure = async (): Promise<VIXTermStructurePoint[]> => {
+// Rename imported function to avoid conflict
+export const getLatestVIXTermStructure = async () => {
   try {
     return await fetchLatestVIXTermStructure();
   } catch (error) {
