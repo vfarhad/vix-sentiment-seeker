@@ -12,7 +12,7 @@ import SupabaseStatus from '@/components/SupabaseStatus';
 import VIXContangoTable from '@/components/VIXContangoTable';
 import { vixStatistics, marketSentiment, marketHeadlines } from '@/lib/mockData';
 import { fetchMarketIndices, setupMarketDataPolling, MarketIndex } from '@/services/marketDataService';
-import { scrapeHistoricalVIX, scrapeVIXFutures, VIXHistoricalDataPoint, VIXFuturesDataPoint } from '@/services/vixScraperService';
+import { scrapeHistoricalVIX, scrapeVIXFutures, VIXHistoricalDataPoint } from '@/services/vixScraperService';
 import { 
   fetchSP500Data, 
   getVIXFuturesHistData, 
