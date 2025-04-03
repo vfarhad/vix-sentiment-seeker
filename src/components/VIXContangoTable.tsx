@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   Table,
@@ -69,12 +68,26 @@ const VIXContangoTable: React.FC<VIXContangoTableProps> = ({
                     
                     if (value !== null) {
                       isNegative = value < 0;
-                      // For term structure, we want to show % regardless of the type
-                      formattedValue = row.label.includes('Term Structure') 
-                        ? value.toFixed(2) + '%'
-                        : isNegative
-                          ? value.toFixed(2) + '%'
-                          : value.toFixed(2) + (row.label.includes('Diff') ? '' : '%');
+                      
+                      // Term Structure is always shown as a percentage
+                      if (row.label.includes('Term Structure')) {
+                        // Term Structure = (Futures Price / Spot VIX) * 100
+                        // If > 100%, it's in contango, if < 100%, it's in backwardation
+                        formattedValue = value.toFixed(2) + '%';
+                        // Redefine isNegative for Term Structure to be < 100%
+                        isNegative = value < 100;
+                      } 
+                      // Contango Difference is shown as absolute difference
+                      else if (row.label.includes('Difference')) {
+                        // Contango as difference = Futures Price - Spot VIX
+                        formattedValue = value.toFixed(2);
+                        isNegative = value < 0;
+                      }
+                      // Other metrics (like % Contango) keep their percentage representation
+                      else {
+                        formattedValue = value.toFixed(2) + '%';
+                        isNegative = value < 0;
+                      }
                     }
                     
                     return (
