@@ -426,11 +426,6 @@ const Index = () => {
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            {/* Add Crypto Widget at the top */}
-            <div className="bg-card rounded-lg border border-border p-1 h-[400px]">
-              <CryptoWidget />
-            </div>
-            
             {dataLoading ? (
               <div className="bg-card rounded-lg border border-border p-6 flex flex-col items-center justify-center h-[300px]">
                 <div className="flex items-center space-x-2">
@@ -539,6 +534,11 @@ const Index = () => {
               sentiment={marketSentiment.current as 'bullish' | 'bearish' | 'neutral'} 
               strength={marketSentiment.strength as 'strong' | 'moderate' | 'weak'} 
             />
+            
+            {/* CryptoWidget placed below SentimentIndicator */}
+            <div className="bg-card rounded-lg border border-border p-1 h-[300px]">
+              <CryptoWidget />
+            </div>
             
             <SupabaseStatus 
               isConnected={isSupabaseConnected}
