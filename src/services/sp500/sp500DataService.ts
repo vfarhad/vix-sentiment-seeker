@@ -41,6 +41,8 @@ export const fetchSP500Data = async (): Promise<SP500DataPoint[]> => {
     twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
     const dateStr = twoMonthsAgo.toISOString().split('T')[0];
     
+    console.log(`Fetching S&P 500 data since ${dateStr}`);
+    
     const { data, error } = await supabase
       .from('SP500_HIST_DATA')
       .select('DATE, CLOSE, OPEN, HIGH, LOW')  // Include all needed columns
@@ -55,10 +57,14 @@ export const fetchSP500Data = async (): Promise<SP500DataPoint[]> => {
     
     if (!data || data.length === 0) {
       console.warn('No S&P 500 historical data found in database');
+      toast.warning('No S&P 500 data found in database');
       return [];
     }
     
     console.log(`Fetched ${data.length} S&P 500 data points`);
+    console.log('First data point:', data[0]);
+    console.log('Last data point:', data[data.length - 1]);
+    
     return data;
   } catch (error) {
     console.error('Unexpected error fetching S&P 500 data:', error);
