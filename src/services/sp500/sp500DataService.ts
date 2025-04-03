@@ -5,6 +5,9 @@ import { toast } from 'sonner';
 export interface SP500DataPoint {
   DATE: string;
   CLOSE: number;
+  OPEN?: number;  // Make optional since they may be nullable
+  HIGH?: number;  // Make optional since they may be nullable
+  LOW?: number;   // Make optional since they may be nullable
 }
 
 export const fetchSP500Data = async (): Promise<SP500DataPoint[]> => {
@@ -14,7 +17,7 @@ export const fetchSP500Data = async (): Promise<SP500DataPoint[]> => {
     // Check if table exists first by doing a limited query
     const checkTable = await supabase
       .from('SP500_HIST_DATA')
-      .select('DATE, CLOSE')
+      .select('DATE, CLOSE, OPEN, HIGH, LOW')  // Include all needed columns
       .limit(1);
     
     console.log('Initial table check result:', checkTable);
@@ -40,7 +43,7 @@ export const fetchSP500Data = async (): Promise<SP500DataPoint[]> => {
     
     const { data, error } = await supabase
       .from('SP500_HIST_DATA')
-      .select('DATE, CLOSE')
+      .select('DATE, CLOSE, OPEN, HIGH, LOW')  // Include all needed columns
       .gte('DATE', dateStr)
       .order('DATE', { ascending: true });
     

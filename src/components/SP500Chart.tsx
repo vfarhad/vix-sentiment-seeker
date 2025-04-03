@@ -244,9 +244,9 @@ const SP500Chart: React.FC<SP500ChartProps> = ({ data }) => {
                           month: 'short', 
                           day: 'numeric' 
                         })}</TableCell>
-                        <TableCell>${point.OPEN?.toFixed(2) || '-'}</TableCell>
-                        <TableCell>${point.HIGH?.toFixed(2) || '-'}</TableCell>
-                        <TableCell>${point.LOW?.toFixed(2) || '-'}</TableCell>
+                        <TableCell>${point.OPEN !== undefined && point.OPEN !== null ? point.OPEN.toFixed(2) : '-'}</TableCell>
+                        <TableCell>${point.HIGH !== undefined && point.HIGH !== null ? point.HIGH.toFixed(2) : '-'}</TableCell>
+                        <TableCell>${point.LOW !== undefined && point.LOW !== null ? point.LOW.toFixed(2) : '-'}</TableCell>
                         <TableCell>${point.CLOSE.toFixed(2)}</TableCell>
                         <TableCell className={isPositive ? 'text-green-600' : 'text-red-600'}>
                           {isPositive ? '+' : ''}{changePercent}%
