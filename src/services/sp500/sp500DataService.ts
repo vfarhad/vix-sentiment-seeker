@@ -8,9 +8,17 @@ export const fetchSP500Data = async (): Promise<SP500HistoricalDataPoint[]> => {
   try {
     console.log('Fetching S&P 500 historical data from Supabase');
     
+    // Calculate date 60 days ago
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+    const formattedDate = sixtyDaysAgo.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+    
+    console.log(`Fetching data from ${formattedDate} onwards`);
+    
     const { data, error } = await supabase
       .from('SP500_HIST_DATA')
       .select('DATE, CLOSE')
+      .gte('DATE', formattedDate) // Get only data from last 60 days
       .order('DATE', { ascending: true });
     
     if (error) {
@@ -25,6 +33,7 @@ export const fetchSP500Data = async (): Promise<SP500HistoricalDataPoint[]> => {
     }
     
     console.log('Raw data from Supabase:', data.slice(0, 3));
+    console.log(`Total records retrieved: ${data.length}`);
     
     // Transform the data to match our SP500HistoricalDataPoint type
     // Filter out any null values to prevent rendering issues

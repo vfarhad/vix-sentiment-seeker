@@ -23,7 +23,7 @@ const SP500Chart = ({ data, className }: SP500ChartProps) => {
   if (!data || data.length === 0) {
     return (
       <div className={`chart-container ${className}`}>
-        <h2 className="text-lg font-semibold mb-4">S&P 500 Historical Chart</h2>
+        <h2 className="text-lg font-semibold mb-4">S&P 500 - 60 Days</h2>
         <div className="h-[300px] flex items-center justify-center bg-card rounded-lg border border-border">
           <p className="text-muted-foreground">No S&P 500 data available</p>
         </div>
@@ -41,7 +41,7 @@ const SP500Chart = ({ data, className }: SP500ChartProps) => {
   if (validData.length === 0) {
     return (
       <div className={`chart-container ${className}`}>
-        <h2 className="text-lg font-semibold mb-4">S&P 500 Historical Chart</h2>
+        <h2 className="text-lg font-semibold mb-4">S&P 500 - 60 Days</h2>
         <div className="h-[300px] flex items-center justify-center bg-card rounded-lg border border-border">
           <p className="text-muted-foreground">Invalid S&P 500 data format</p>
         </div>
@@ -108,7 +108,9 @@ const SP500Chart = ({ data, className }: SP500ChartProps) => {
   };
   
   // Add moving average to data
-  const maData = calculateMA(validData, 50);
+  // For a 60-day chart, use a shorter MA period like 20 days instead of 50
+  const maDays = Math.min(20, Math.floor(validData.length / 3));
+  const maData = calculateMA(validData, maDays);
   const dataWithMA = validData.map((item, i) => ({
     ...item,
     ma50: maData[i]
@@ -116,7 +118,7 @@ const SP500Chart = ({ data, className }: SP500ChartProps) => {
 
   return (
     <div className={`chart-container ${className}`}>
-      <h2 className="text-lg font-semibold mb-4">S&P 500 Historical Chart</h2>
+      <h2 className="text-lg font-semibold mb-4">S&P 500 - 60 Days</h2>
       <div className="text-sm text-muted-foreground mb-2">
         Showing close values for the last {validData.length} days
       </div>
@@ -169,7 +171,7 @@ const SP500Chart = ({ data, className }: SP500ChartProps) => {
               stroke="#0EA5E9"
               strokeWidth={2}
               dot={false}
-              name="50-day MA"
+              name={`${maDays}-day MA`}
             />
           </ComposedChart>
         </ResponsiveContainer>
@@ -183,7 +185,7 @@ const SP500Chart = ({ data, className }: SP500ChartProps) => {
           </div>
           <div className="flex items-center">
             <div className="w-3 h-3 rounded-full mr-1 bg-blue-500"></div>
-            <span>50-day MA</span>
+            <span>{maDays}-day MA</span>
           </div>
         </div>
         <span>{formatDate(validData[validData.length - 1]?.date)}</span>
