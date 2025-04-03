@@ -44,6 +44,7 @@ const Index = () => {
   const [vixFuturesLoading, setVIXFuturesLoading] = useState(true);
   const [contangoPercentages, setContangoPercentages] = useState<any[]>([]);
   const [contangoDifferences, setContangoDifferences] = useState<any[]>([]);
+  const [termStructure, setTermStructure] = useState<any[]>([]);
   const [monthRangeMetrics, setMonthRangeMetrics] = useState<any[]>([]);
 
   const { data, isError } = useQuery({
@@ -164,6 +165,7 @@ const Index = () => {
           const metrics = calculateContangoMetrics(termStructure);
           setContangoPercentages(metrics.contangoPercentages);
           setContangoDifferences(metrics.contangoDifferences);
+          setTermStructure(metrics.termStructure);
           setMonthRangeMetrics(metrics.monthRangeMetrics);
           
           setShowVIXFutures(true);
@@ -184,6 +186,7 @@ const Index = () => {
           const metrics = calculateContangoMetrics(calculatedTermStructure);
           setContangoPercentages(metrics.contangoPercentages);
           setContangoDifferences(metrics.contangoDifferences);
+          setTermStructure(metrics.termStructure);
           setMonthRangeMetrics(metrics.monthRangeMetrics);
           
           setShowVIXFutures(true);
@@ -196,6 +199,7 @@ const Index = () => {
             const metrics = calculateContangoMetrics(supabaseData);
             setContangoPercentages(metrics.contangoPercentages);
             setContangoDifferences(metrics.contangoDifferences);
+            setTermStructure(metrics.termStructure);
             setMonthRangeMetrics(metrics.monthRangeMetrics);
             
             setShowVIXFutures(true);
@@ -214,6 +218,7 @@ const Index = () => {
               const metrics = calculateContangoMetrics(futuresWithMetadata);
               setContangoPercentages(metrics.contangoPercentages);
               setContangoDifferences(metrics.contangoDifferences);
+              setTermStructure(metrics.termStructure);
               setMonthRangeMetrics(metrics.monthRangeMetrics);
               
               setShowVIXFutures(true);
@@ -343,6 +348,7 @@ const Index = () => {
         const metrics = calculateContangoMetrics(termStructure);
         setContangoPercentages(metrics.contangoPercentages);
         setContangoDifferences(metrics.contangoDifferences);
+        setTermStructure(metrics.termStructure);
         setMonthRangeMetrics(metrics.monthRangeMetrics);
         
         setShowVIXFutures(true);
@@ -363,6 +369,7 @@ const Index = () => {
         const metrics = calculateContangoMetrics(futuresWithMetadata);
         setContangoPercentages(metrics.contangoPercentages);
         setContangoDifferences(metrics.contangoDifferences);
+        setTermStructure(metrics.termStructure);
         setMonthRangeMetrics(metrics.monthRangeMetrics);
         
         setShowVIXFutures(true);
@@ -476,6 +483,10 @@ const Index = () => {
                 {contangoPercentages.length > 0 && contangoDifferences.length > 0 && (
                   <VIXContangoTable 
                     contangoData={[
+                      {
+                        label: 'Term Structure',
+                        values: termStructure
+                      },
                       {
                         label: '% Contango',
                         values: contangoPercentages

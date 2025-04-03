@@ -63,16 +63,24 @@ const VIXContangoTable: React.FC<VIXContangoTableProps> = ({
                   {months.map(month => {
                     const monthData = row.values.find(v => v.month === month);
                     const value = monthData ? monthData.value : null;
-                    const formattedValue = value !== null 
-                      ? value < 0 
+                    
+                    let formattedValue = '-';
+                    let isNegative = false;
+                    
+                    if (value !== null) {
+                      isNegative = value < 0;
+                      // For term structure, we want to show % regardless of the type
+                      formattedValue = row.label.includes('Term Structure') 
                         ? value.toFixed(2) + '%'
-                        : value.toFixed(2)
-                      : '-';
+                        : isNegative
+                          ? value.toFixed(2) + '%'
+                          : value.toFixed(2) + (row.label.includes('Diff') ? '' : '%');
+                    }
                     
                     return (
                       <React.Fragment key={`cell-${rowIndex}-${month}`}>
                         <TableCell className="text-center border border-border">{month}</TableCell>
-                        <TableCell className={`text-right border border-border ${value < 0 ? 'text-red-600' : ''}`}>
+                        <TableCell className={`text-right border border-border ${isNegative ? 'text-red-600' : ''}`}>
                           {formattedValue}
                         </TableCell>
                       </React.Fragment>

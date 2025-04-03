@@ -282,6 +282,18 @@ const VIXFuturesChart = ({ data, volumeData }: VIXFuturesChartProps) => {
                 </div>
               </div>
               
+              <h5>Term Structure Calculation</h5>
+              <div className="bg-muted p-3 rounded-md my-3">
+                <p className="text-xs">
+                  Term Structure = (VIX Futures Price / Spot VIX Index) × 100
+                </p>
+                <p className="text-xs mt-2">
+                  This calculation shows the relationship between the VIX futures prices and the current spot VIX index.
+                  Values above 100% indicate futures trading at a premium to spot (contango), while values below 100%
+                  indicate futures trading at a discount to spot (backwardation).
+                </p>
+              </div>
+              
               <h5>Special Calculations</h5>
               <ul className="text-xs space-y-2">
                 <li>

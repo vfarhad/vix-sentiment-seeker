@@ -373,10 +373,11 @@ export const getLatestVIXTermStructure = async (): Promise<VIXTermStructurePoint
   }
 };
 
-// Helper function to calculate contango percentages and differences
+// Helper function to calculate contango percentages, differences, and term structure
 export const calculateContangoMetrics = (vixTermStructure: VIXTermStructurePoint[]): {
   contangoPercentages: { month: number; value: number }[];
   contangoDifferences: { month: number; value: number }[];
+  termStructure: { month: number; value: number }[];
   monthRangeMetrics: { label: string; value: number }[];
 } => {
   // Filter futures only (not implied or constant maturity)
@@ -393,6 +394,7 @@ export const calculateContangoMetrics = (vixTermStructure: VIXTermStructurePoint
     return {
       contangoPercentages: [],
       contangoDifferences: [],
+      termStructure: [],
       monthRangeMetrics: []
     };
   }
@@ -400,7 +402,7 @@ export const calculateContangoMetrics = (vixTermStructure: VIXTermStructurePoint
   // Get the spot/current VIX
   const spotVIX = futures[0].value;
   
-  // Calculate contango percentages and differences
+  // Calculate contango percentages (still useful to show)
   const contangoPercentages = futures.map((future, index) => {
     if (index === 0) return { month: 1, value: 0 }; // Spot month is 0% change
     
@@ -416,7 +418,7 @@ export const calculateContangoMetrics = (vixTermStructure: VIXTermStructurePoint
     };
   });
   
-  // Calculate absolute differences
+  // Calculate absolute differences (also still useful)
   const contangoDifferences = futures.map((future, index) => {
     if (index === 0) return { month: 1, value: 0 }; // Spot month has 0 difference
     
@@ -429,6 +431,24 @@ export const calculateContangoMetrics = (vixTermStructure: VIXTermStructurePoint
     return {
       month: monthNumber,
       value: difference
+    };
+  });
+  
+  // Calculate term structure as per the formula: (VIX Futures Price / Spot VIX Index) × 100
+  const termStructure = futures.map((future, index) => {
+    const monthNumber = index + 1;
+    
+    if (index === 0) {
+      // For spot VIX, the term structure is always 100%
+      return { month: monthNumber, value: 100 };
+    }
+    
+    // Calculate the term structure using the formula from the image
+    const termStructureValue = (future.value / spotVIX) * 100;
+    
+    return {
+      month: monthNumber,
+      value: termStructureValue
     };
   });
   
@@ -447,11 +467,21 @@ export const calculateContangoMetrics = (vixTermStructure: VIXTermStructurePoint
     });
   }
   
-  // Other month range calculations can be added here
+  // Add a term structure steepness metric (if we have enough months)
+  if (futures.length >= 3) {
+    const month3 = futures[2].value;
+    const steepness = ((month3 / spotVIX) - 1) * 100;
+    
+    monthRangeMetrics.push({
+      label: 'Term Structure Steepness (3M)',
+      value: steepness
+    });
+  }
   
   return {
     contangoPercentages,
     contangoDifferences,
+    termStructure,
     monthRangeMetrics
   };
 };
