@@ -14,6 +14,7 @@ export const scrapeHistoricalVIX = async (): Promise<VIXHistoricalDataPoint[]> =
     const response = await fetchWithProxy(VIX_URL);
     
     if (!response.ok) {
+      console.error(`Failed to fetch vixcentral.com: ${response.status}`);
       throw new Error(`Failed to fetch vixcentral.com: ${response.status}`);
     }
     
@@ -108,51 +109,66 @@ export const scrapeHistoricalVIX = async (): Promise<VIXHistoricalDataPoint[]> =
       }
     }
     
-    // Strategy 3: Generate some mock data if we can't find real data
-    // This ensures the UI has something to display
     console.log('Could not find historical VIX data, generating mock data');
-    const mockData: VIXHistoricalDataPoint[] = [];
-    const today = new Date();
-    const baseValue = 18 + Math.random() * 5;
-    
-    for (let i = 30; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      
-      // Generate somewhat realistic VIX values (typically between 10-40)
-      // with some correlation between adjacent days
-      const randomFactor = Math.random() * 2 - 1; // Between -1 and 1
-      const prevValue = mockData.length > 0 ? mockData[mockData.length - 1].value : baseValue;
-      const maxChange = prevValue * 0.08; // Max 8% change day to day
-      const change = randomFactor * maxChange;
-      const value = Math.max(10, Math.min(40, prevValue + change));
-      
-      mockData.push({
-        date: date.toISOString().split('T')[0],
-        value: parseFloat(value.toFixed(2))
-      });
-    }
-    
-    return mockData;
+    return generateRealisticMockData();
   } catch (error) {
     console.error('Error scraping historical VIX data:', error);
+    toast.error('Failed to fetch VIX data from source, using sample data');
+    return generateRealisticMockData();
+  }
+};
+
+// Generate realistic VIX mock data with proper volatility patterns
+const generateRealisticMockData = (): VIXHistoricalDataPoint[] => {
+  const mockData: VIXHistoricalDataPoint[] = [];
+  const today = new Date();
+  
+  // Start with a base VIX value (typical range 15-20)
+  let baseValue = 18;
+  let currentValue = baseValue;
+  
+  // Generate 30 days of data with realistic patterns
+  for (let i = 30; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
     
-    // Generate mock data as fallback
-    const mockData: VIXHistoricalDataPoint[] = [];
-    const today = new Date();
-    const baseValue = 18 + Math.random() * 5;
+    // Apply different patterns for different date ranges to simulate market regimes
+    let volatilityMultiplier = 1.0;
     
-    for (let i = 30; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const value = baseValue + Math.sin(i / 5) * 4 + (Math.random() * 2 - 1);
-      
-      mockData.push({
-        date: date.toISOString().split('T')[0],
-        value: parseFloat(value.toFixed(2))
-      });
+    // Create a regime shift around day 15
+    if (i < 15 && i > 10) {
+      // Increasing volatility period
+      volatilityMultiplier = 1.5;
+    } else if (i <= 10 && i > 5) {
+      // High volatility period
+      volatilityMultiplier = 2.0;
+    } else if (i <= 5) {
+      // Decreasing volatility period
+      volatilityMultiplier = 1.2;
     }
     
-    return mockData;
+    // Calculate daily change with mean reversion
+    const meanReversionFactor = (baseValue - currentValue) * 0.1;
+    const randomChange = (Math.random() * 2 - 1) * volatilityMultiplier;
+    const dailyChange = randomChange + meanReversionFactor;
+    
+    // Create occasional spikes (about 10% chance)
+    const spikeChance = Math.random();
+    if (spikeChance > 0.9) {
+      currentValue += (Math.random() * 4 + 2) * Math.sign(dailyChange);
+    } else {
+      currentValue += dailyChange;
+    }
+    
+    // Ensure VIX stays in a realistic range (10-40)
+    currentValue = Math.max(10, Math.min(40, currentValue));
+    
+    mockData.push({
+      date: date.toISOString().split('T')[0],
+      value: parseFloat(currentValue.toFixed(2))
+    });
   }
+  
+  console.log('Generated realistic mock VIX data:', mockData.slice(0, 3));
+  return mockData;
 };

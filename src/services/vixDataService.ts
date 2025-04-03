@@ -122,16 +122,31 @@ export const getVIXHistData = async (): Promise<VIXHistoricalDataPoint[]> => {
     
     if (countError) {
       console.error('Error checking VIX_HIST_DATA table:', countError);
-      toast.error('Error checking VIX_HIST_DATA table');
-      return [];
+      
+      // Check if this is a permissions issue
+      if (countError.code === '42501') {
+        toast.error('Permission denied: Cannot access VIX_HIST_DATA table');
+        console.error('Permission denied on VIX_HIST_DATA. Check RLS policies.');
+      } else {
+        toast.error('Error checking VIX_HIST_DATA table');
+      }
+      
+      return generateMockVIXData();
     }
     
     console.log(`VIX_HIST_DATA table contains ${count} records`);
     
     if (!count || count === 0) {
-      // Insert sample data for demonstration if table is empty
-      await insertSampleVIXData();
-      toast.info('Added sample VIX data for demonstration');
+      console.log('No data found in VIX_HIST_DATA table, inserting sample data...');
+      // Try to insert sample data for demonstration if table is empty
+      try {
+        await insertSampleVIXData();
+        toast.info('Added sample VIX data for demonstration');
+      } catch (insertError) {
+        console.error('Failed to insert sample data:', insertError);
+        // If insertion fails (likely due to permissions), just use mock data
+        return generateMockVIXData();
+      }
     }
     
     // Query using the actual column names from the database
@@ -145,17 +160,17 @@ export const getVIXHistData = async (): Promise<VIXHistoricalDataPoint[]> => {
       // Check if this is a 'relation does not exist' error
       if (error.code === '42P01') {
         toast.error('Table VIX_HIST_DATA does not exist in Supabase');
-        return [];
+        return generateMockVIXData();
       }
       console.error('Error fetching data from VIX_HIST_DATA:', error);
       toast.error(`Failed to fetch VIX data: ${error.message}`);
-      return [];
+      return generateMockVIXData();
     }
     
     console.log(`Retrieved ${data?.length || 0} records from VIX_HIST_DATA`);
     
     if (!data || data.length === 0) {
-      toast.error('No VIX data found for the last 30 days');
+      toast.info('No VIX data found for the last 30 days, using sample data');
       return generateMockVIXData(); // Return mock data as fallback
     }
     
@@ -184,12 +199,46 @@ export const getVIXHistData = async (): Promise<VIXHistoricalDataPoint[]> => {
 const generateMockVIXData = (): VIXHistoricalDataPoint[] => {
   const mockData: VIXHistoricalDataPoint[] = [];
   const today = new Date();
-  const baseValue = 18 + Math.random() * 5;
   
+  // Generate a more realistic VIX pattern starting from a base value
+  let baseValue = 18;
+  
+  // Create a 30-day pattern with some volatility clusters and mean reversion
   for (let i = 30; i >= 0; i--) {
     const date = new Date(today);
     date.setDate(date.getDate() - i);
-    const value = baseValue + Math.sin(i / 5) * 4 + (Math.random() * 2 - 1);
+    
+    // Create more interesting patterns with occasional spikes
+    let randomFactor;
+    
+    if (i % 7 === 0) {
+      // Create a volatility spike every 7 days
+      randomFactor = (Math.random() * 6) - 1; // Larger change (-1 to +5)
+    } else if (mockData.length > 0) {
+      // Mean reversion - if we're far from baseline, tend to move back
+      const prevValue = mockData[mockData.length - 1].value;
+      const distanceFromBase = prevValue - baseValue;
+      
+      // Mean reversion factor - stronger the further we are from base
+      const reversionStrength = Math.min(1, Math.abs(distanceFromBase) / 10) * Math.sign(distanceFromBase) * -1;
+      
+      // Random movement + mean reversion
+      randomFactor = (Math.random() * 2 - 1) + reversionStrength;
+    } else {
+      // First day
+      randomFactor = Math.random() * 2 - 1;
+    }
+    
+    // Calculate new value with constraints
+    let value;
+    
+    if (mockData.length > 0) {
+      const prevValue = mockData[mockData.length - 1].value;
+      const change = prevValue * (randomFactor * 0.05); // Max 5% daily change
+      value = Math.max(10, Math.min(40, prevValue + change));
+    } else {
+      value = baseValue + (randomFactor * 3);
+    }
     
     mockData.push({
       date: date.toISOString().split('T')[0],
@@ -197,7 +246,7 @@ const generateMockVIXData = (): VIXHistoricalDataPoint[] => {
     });
   }
   
-  console.log('Generated mock VIX data for fallback');
+  console.log('Generated realistic mock VIX data for fallback');
   return mockData;
 };
 
