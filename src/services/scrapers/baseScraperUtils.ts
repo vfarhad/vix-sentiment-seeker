@@ -10,13 +10,15 @@ export const fetchWithProxy = async (url: string, options: RequestInit = {}): Pr
     console.log('Fetching with proxy:', proxiedUrl);
     
     try {
-      // Try with no-cors mode if we're in the browser
+      // Try with standard CORS mode first
       const response = await fetch(proxiedUrl, {
         ...options,
         mode: 'cors',
         headers: {
           ...options.headers,
-          'Origin': window.location.origin
+          'Origin': window.location.origin,
+          'Referer': proxiedUrl.includes('?url=') ? url : proxiedUrl, // Set referer based on proxy type
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
       });
       
@@ -45,7 +47,9 @@ export const fetchWithProxy = async (url: string, options: RequestInit = {}): Pr
           mode: 'cors',
           headers: {
             ...options.headers,
-            'Origin': window.location.origin
+            'Origin': window.location.origin,
+            'Referer': workingProxy.includes('?url=') ? url : newProxiedUrl,
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
           }
         });
         
@@ -59,12 +63,22 @@ export const fetchWithProxy = async (url: string, options: RequestInit = {}): Pr
     
     // If all proxies fail, try a direct request as a last resort
     console.log('All proxies failed, trying direct request');
-    const directResponse = await fetch(url, {
-      ...options,
-      mode: 'no-cors', // This will give an opaque response but might work in some cases
-    });
-    
-    return directResponse;
+    try {
+      const directResponse = await fetch(url, {
+        ...options,
+        mode: 'no-cors', // This will give an opaque response but might work in some cases
+        credentials: 'omit',
+        headers: {
+          ...options.headers,
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+      });
+      
+      return directResponse;
+    } catch (directError) {
+      console.error('Direct request failed:', directError);
+      throw directError;
+    }
   } catch (error) {
     console.error('Error fetching with proxy:', error);
     throw error;
@@ -73,3 +87,5 @@ export const fetchWithProxy = async (url: string, options: RequestInit = {}): Pr
 
 // Common constants
 export const VIX_URL = 'http://vixcentral.com';
+export const INVESTING_URL = 'https://www.investing.com';
+export const YAHOO_FINANCE_URL = 'https://finance.yahoo.com';

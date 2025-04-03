@@ -5,12 +5,13 @@
 
 // List of available public CORS proxies
 const CORS_PROXIES = [
+  'https://api.allorigins.win/raw?url=',
   'https://corsproxy.io/?',
   'https://cors-anywhere.herokuapp.com/',
-  'https://api.allorigins.win/raw?url=',
   'https://thingproxy.freeboard.io/fetch/',
   'https://cors.bridged.cc/',
   'https://cors-proxy.htmldriven.com/?url=',
+  'https://api.codetabs.com/v1/proxy?quest=',
 ];
 
 // Get the current proxy or set a default
@@ -30,8 +31,8 @@ export const applyProxy = (url: string): string => {
   const encodedUrl = encodeURIComponent(url);
   
   // Special handling for different proxy formats
-  if (currentProxy.includes('?url=')) {
-    // Proxies that use the ?url= format
+  if (currentProxy.includes('?url=') || currentProxy.includes('?quest=')) {
+    // Proxies that use the ?url= or ?quest= format
     return `${currentProxy}${encodedUrl}`;
   }
   
@@ -42,17 +43,30 @@ export const applyProxy = (url: string): string => {
 export const testCorsProxy = async (proxyUrl: string, testUrl: string): Promise<boolean> => {
   try {
     // Format the URL based on proxy type
-    const fullUrl = proxyUrl.includes('?url=') 
+    const fullUrl = proxyUrl.includes('?url=') || proxyUrl.includes('?quest=')
       ? `${proxyUrl}${encodeURIComponent(testUrl)}`
       : `${proxyUrl}${testUrl}`;
+    
+    console.log(`Testing proxy ${proxyUrl} with URL ${testUrl}`);
     
     // Use no-cors mode if available to test 
     const response = await fetch(fullUrl, { 
       method: 'HEAD',
-      mode: 'no-cors'
+      mode: 'cors',
+      headers: {
+        'Origin': window.location.origin,
+        'Referer': proxyUrl.includes('?') ? testUrl : fullUrl
+      },
+      timeout: 5000 // 5 second timeout for testing
     });
     
-    return true; // If we get here, proxy might work
+    if (response.status >= 200 && response.status < 400) {
+      console.log(`Proxy ${proxyUrl} works for ${testUrl}`);
+      return true;
+    }
+    
+    console.log(`Proxy ${proxyUrl} returned status ${response.status} for ${testUrl}`);
+    return false;
   } catch (error) {
     console.error(`CORS proxy test failed for ${proxyUrl}`, error);
     return false;
@@ -72,9 +86,18 @@ export const findWorkingProxy = async (url: string): Promise<string | null> => {
     } catch (e) {
       console.error(`Error testing proxy ${proxy}:`, e);
     }
+    
+    // Add a small delay between proxy tests
+    await new Promise(resolve => setTimeout(resolve, 200));
   }
-  return null;
+  
+  // Return the first proxy as a fallback if none work
+  console.warn('No working proxy found, using default');
+  setCurrentProxy(CORS_PROXIES[0]);
+  return CORS_PROXIES[0];
 };
 
 // Common constants
 export const VIX_URL = 'http://vixcentral.com';
+export const INVESTING_URL = 'https://www.investing.com';
+export const YAHOO_FINANCE_URL = 'https://finance.yahoo.com';

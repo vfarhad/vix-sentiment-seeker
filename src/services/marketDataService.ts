@@ -5,6 +5,7 @@ import { generateFallbackData, generateAllFallbackData } from './fallbackDataSer
 import { fetchFMPQuote, fetchFMPHistoricalData, fetchFMPMarketStatus } from './fmpAPIService';
 import { transformFMPData } from './dataTransformService';
 import { scrapeYahooFinanceMarkets } from './scrapers/yahooFinanceMarketsScraper';
+import { scrapeInvestingMarkets } from './scrapers/investingMarketsScraper';
 
 // Export MarketIndex type for use in components
 export type { MarketIndex } from '@/types/marketData';
@@ -18,24 +19,32 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
     
     // Filter out any invalid entries
     yahooMarketsData = yahooMarketsData.filter(index => 
-      index && !isNaN(index.value) && index.name && index.symbol
+      index && !isNaN(parseFloat(index.value.toString())) && index.name && index.change
     );
     
     if (yahooMarketsData && yahooMarketsData.length > 0) {
       console.log("Successfully loaded market data from Yahoo Finance markets page");
       toast.success('Live market data loaded from Yahoo Finance');
-      
-      // Transform Yahoo data to MarketIndex format
-      return yahooMarketsData.map(index => ({
-        name: index.name,
-        value: index.name === "VIX" ? index.value.toFixed(2) : index.value.toLocaleString(),
-        change: index.change.toFixed(2),
-        changePercent: `${index.changePercent.toFixed(2)}%`
-      }));
+      return yahooMarketsData;
     }
     
-    // Fall back to FMP API if Yahoo fails
-    console.log("Yahoo Finance data unavailable, falling back to FMP API");
+    // Fall back to investing.com if Yahoo fails
+    console.log("Yahoo Finance data unavailable, falling back to investing.com");
+    let investingData = await scrapeInvestingMarkets();
+    
+    // Filter out any invalid entries
+    investingData = investingData.filter(index => 
+      index && !isNaN(parseFloat(index.value.toString())) && index.name && index.change
+    );
+    
+    if (investingData && investingData.length > 0) {
+      console.log("Successfully loaded market data from investing.com");
+      toast.success('Live market data loaded from investing.com');
+      return investingData;
+    }
+    
+    // Fall back to FMP API if both scrapers fail
+    console.log("Scraped data unavailable, falling back to FMP API");
     
     // Define indices to fetch with their symbols
     const indices = [
