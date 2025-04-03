@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from '@/components/Header';
 import MarketBanner from '@/components/MarketBanner';
@@ -11,6 +10,7 @@ import SupabaseSetup from '@/components/SupabaseSetup';
 import SupabaseStatus from '@/components/SupabaseStatus';
 import VIXContangoTable from '@/components/VIXContangoTable';
 import CryptoWidget from '@/components/CryptoWidget';
+import SP500Chart from '@/components/SP500Chart';
 import { vixStatistics, marketSentiment, marketHeadlines } from '@/lib/mockData';
 import { fetchMarketIndices, setupMarketDataPolling, MarketIndex } from '@/services/marketDataService';
 import { scrapeHistoricalVIX, scrapeVIXFutures, VIXHistoricalDataPoint } from '@/services/vixScraperService';
@@ -19,7 +19,8 @@ import {
   calculateVIXTermStructure, 
   getLatestVIXTermStructure, 
   VIXTermStructurePoint,
-  calculateContangoMetrics
+  calculateContangoMetrics,
+  fetchSP500Data
 } from '@/services/sp500DataService';
 import { storeHistoricalVIXData, getHistoricalVIXData, storeVIXFuturesData, getLatestVIXFuturesData, checkSupabaseTables, getVIXHistData } from '@/services/vixDataService';
 import { useQuery } from '@tanstack/react-query';
@@ -43,6 +44,9 @@ const Index = () => {
   const [contangoDifferences, setContangoDifferences] = useState<any[]>([]);
   const [termStructure, setTermStructure] = useState<any[]>([]);
   const [monthRangeMetrics, setMonthRangeMetrics] = useState<any[]>([]);
+  const [sp500Data, setSP500Data] = useState<any[]>([]);
+  const [sp500Loading, setSP500Loading] = useState(true);
+  const [showSP500Chart, setShowSP500Chart] = useState(false);
 
   const { data, isError } = useQuery({
     queryKey: ['marketIndices'],
@@ -67,6 +71,32 @@ const Index = () => {
       return cleanup;
     }
   }, [isError]);
+
+  useEffect(() => {
+    const fetchSP500HistoricalData = async () => {
+      setSP500Loading(true);
+      try {
+        const data = await fetchSP500Data();
+        if (data && data.length > 0) {
+          setSP500Data(data);
+          setShowSP500Chart(true);
+          toast.success('S&P 500 historical data loaded successfully');
+        } else {
+          console.warn('No S&P 500 historical data found');
+          toast.error('Failed to load S&P 500 historical data');
+          setShowSP500Chart(false);
+        }
+      } catch (error) {
+        console.error('Error fetching S&P 500 historical data:', error);
+        toast.error('Failed to load S&P 500 historical data');
+        setShowSP500Chart(false);
+      } finally {
+        setSP500Loading(false);
+      }
+    };
+
+    fetchSP500HistoricalData();
+  }, []);
 
   useEffect(() => {
     const fetchHistoricalVIX = async () => {
@@ -335,6 +365,29 @@ const Index = () => {
     }
   }, []);
 
+  const handleRetrySP500Load = useCallback(async () => {
+    toast.info('Retrying S&P 500 data load...');
+    setSP500Loading(true);
+    
+    try {
+      const data = await fetchSP500Data();
+      if (data && data.length > 0) {
+        setSP500Data(data);
+        setShowSP500Chart(true);
+        toast.success('S&P 500 historical data loaded successfully');
+      } else {
+        toast.error('No S&P 500 data available');
+        setShowSP500Chart(false);
+      }
+    } catch (error) {
+      console.error('Error reloading S&P 500 data:', error);
+      toast.error('Failed to reload S&P 500 data');
+      setShowSP500Chart(false);
+    }
+    
+    setSP500Loading(false);
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <Header />
@@ -372,6 +425,27 @@ const Index = () => {
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
+            {sp500Loading ? (
+              <div className="bg-card rounded-lg border border-border p-6 flex flex-col items-center justify-center h-[300px]">
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 rounded-full bg-primary animate-ping"></div>
+                  <p className="text-muted-foreground">Loading S&P 500 historical data...</p>
+                </div>
+              </div>
+            ) : showSP500Chart ? (
+              <SP500Chart data={sp500Data} />
+            ) : (
+              <div className="bg-card rounded-lg border border-border p-6 flex flex-col items-center justify-center h-[300px]">
+                <p className="text-muted-foreground">Unable to load S&P 500 historical data</p>
+                <button 
+                  onClick={handleRetrySP500Load}
+                  className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+            
             {dataLoading ? (
               <div className="bg-card rounded-lg border border-border p-6 flex flex-col items-center justify-center h-[300px]">
                 <div className="flex items-center space-x-2">
@@ -460,7 +534,6 @@ const Index = () => {
               strength={marketSentiment.strength as 'strong' | 'moderate' | 'weak'} 
             />
             
-            {/* CryptoWidget placed below SentimentIndicator */}
             <div className="bg-card rounded-lg border border-border p-1 h-[300px]">
               <CryptoWidget />
             </div>

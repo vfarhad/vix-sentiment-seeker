@@ -5,7 +5,8 @@ import {
   getVIXFuturesHistData, 
   calculateVIXTermStructure, 
   getLatestVIXTermStructure, 
-  calculateContangoMetrics
+  calculateContangoMetrics,
+  fetchSP500Data
 } from './sp500/index';
 
 // Import types with proper syntax for isolatedModules
@@ -16,7 +17,8 @@ export {
   getVIXFuturesHistData, 
   calculateVIXTermStructure, 
   getLatestVIXTermStructure, 
-  calculateContangoMetrics
+  calculateContangoMetrics,
+  fetchSP500Data
 };
 
 // Re-export types with proper syntax
