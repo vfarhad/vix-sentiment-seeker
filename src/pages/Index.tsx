@@ -12,15 +12,8 @@ import SupabaseStatus from '@/components/SupabaseStatus';
 import { vixStatistics, marketSentiment, marketHeadlines } from '@/lib/mockData';
 import { fetchMarketIndices, setupMarketDataPolling, MarketIndex } from '@/services/marketDataService';
 import { scrapeHistoricalVIX, scrapeVIXFutures, VIXHistoricalDataPoint, VIXFuturesDataPoint } from '@/services/vixScraperService';
-import { fetchSP500Data } from '@/services/sp500DataService';
-import { 
-  storeHistoricalVIXData, 
-  getHistoricalVIXData, 
-  storeVIXFuturesData, 
-  getLatestVIXFuturesData,
-  checkSupabaseTables,
-  getVIXHistData
-} from '@/services/vixDataService';
+import { fetchSP500Data, getVIXFuturesHistData, calculateVIXTermStructure } from '@/services/sp500DataService';
+import { storeHistoricalVIXData, getHistoricalVIXData, storeVIXFuturesData, getLatestVIXFuturesData, checkSupabaseTables, getVIXHistData } from '@/services/vixDataService';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -31,6 +24,7 @@ const Index = () => {
   const [historicalVIXData, setHistoricalVIXData] = useState<VIXHistoricalDataPoint[]>([]);
   const [sp500Data, setSP500Data] = useState<any[]>([]);
   const [vixFuturesValues, setVIXFuturesValues] = useState<VIXFuturesDataPoint[]>([]);
+  const [vixFuturesVolumeData, setVIXFuturesVolumeData] = useState<any[]>([]);
   const [showVIXChart, setShowVIXChart] = useState(false);
   const [showSP500Chart, setShowSP500Chart] = useState(false);
   const [showVIXFutures, setShowVIXFutures] = useState(false);
@@ -39,6 +33,7 @@ const Index = () => {
   const [showSetupInterface, setShowSetupInterface] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const [sp500Loading, setSP500Loading] = useState(true);
+  const [vixFuturesLoading, setVIXFuturesLoading] = useState(true);
 
   const { data, isError } = useQuery({
     queryKey: ['marketIndices'],
@@ -68,7 +63,6 @@ const Index = () => {
     const fetchHistoricalVIX = async () => {
       setDataLoading(true);
       try {
-        // Primary data source: VIX_HIST_DATA table
         const vixHistData = await getVIXHistData();
         if (vixHistData && vixHistData.length > 0) {
           setHistoricalVIXData(vixHistData);
@@ -78,7 +72,6 @@ const Index = () => {
           return;
         }
         
-        // Secondary data source: vix_historical_data table
         const supabaseData = await getHistoricalVIXData();
         if (supabaseData && supabaseData.length > 0) {
           setHistoricalVIXData(supabaseData);
@@ -86,7 +79,6 @@ const Index = () => {
           toast.success('VIX historical data loaded from Supabase');
           setDataLoading(false);
         } else {
-          // Tertiary data source: web scraping
           const scrapedData = await scrapeHistoricalVIX();
           if (scrapedData && scrapedData.length > 0) {
             setHistoricalVIXData(scrapedData);
@@ -146,7 +138,22 @@ const Index = () => {
 
   useEffect(() => {
     const fetchVIXFutures = async () => {
+      setVIXFuturesLoading(true);
       try {
+        const volumeData = await getVIXFuturesHistData();
+        if (volumeData && volumeData.length > 0) {
+          setVIXFuturesVolumeData(volumeData);
+          
+          const termStructure = await calculateVIXTermStructure();
+          if (termStructure && termStructure.length > 0) {
+            setVIXFuturesValues(termStructure);
+            setShowVIXFutures(true);
+            toast.success('VIX futures term structure calculated from historical data');
+            setVIXFuturesLoading(false);
+            return;
+          }
+        }
+        
         const supabaseData = await getLatestVIXFuturesData();
         if (supabaseData && supabaseData.length > 0) {
           setVIXFuturesValues(supabaseData);
@@ -174,6 +181,8 @@ const Index = () => {
         console.error('Error fetching VIX futures data:', error);
         toast.error('Failed to load VIX futures data');
         setShowVIXFutures(false);
+      } finally {
+        setVIXFuturesLoading(false);
       }
     };
 
@@ -193,7 +202,6 @@ const Index = () => {
         
         setIsSupabaseConnected(true);
         
-        // Check if data exists
         const hasData = data && data.length > 0;
         console.log('VIX_HIST_DATA has data:', hasData);
 
@@ -262,6 +270,42 @@ const Index = () => {
     }
     
     setSP500Loading(false);
+  }, []);
+
+  const handleRetryFuturesLoad = useCallback(async () => {
+    toast.info('Retrying VIX futures data load...');
+    setVIXFuturesLoading(true);
+    
+    try {
+      const volumeData = await getVIXFuturesHistData();
+      if (volumeData && volumeData.length > 0) {
+        setVIXFuturesVolumeData(volumeData);
+        
+        const termStructure = await calculateVIXTermStructure();
+        if (termStructure && termStructure.length > 0) {
+          setVIXFuturesValues(termStructure);
+          setShowVIXFutures(true);
+          toast.success('VIX futures term structure calculated from historical data');
+          return;
+        }
+      }
+      
+      const scrapedData = await scrapeVIXFutures();
+      if (scrapedData && scrapedData.length > 0) {
+        setVIXFuturesValues(scrapedData);
+        setShowVIXFutures(true);
+        toast.success('VIX futures data loaded');
+      } else {
+        toast.error('No VIX futures data available');
+        setShowVIXFutures(false);
+      }
+    } catch (error) {
+      console.error('Error reloading VIX futures data:', error);
+      toast.error('Failed to reload VIX futures data');
+      setShowVIXFutures(false);
+    } finally {
+      setVIXFuturesLoading(false);
+    }
   }, []);
 
   return (
@@ -343,13 +387,23 @@ const Index = () => {
               </div>
             )}
             
-            {showVIXFutures ? (
-              <VIXFuturesChart data={vixFuturesValues} />
+            {vixFuturesLoading ? (
+              <div className="bg-card rounded-lg border border-border p-6 flex flex-col items-center justify-center h-[300px]">
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 rounded-full bg-primary animate-ping"></div>
+                  <p className="text-muted-foreground">Loading VIX futures data...</p>
+                </div>
+              </div>
+            ) : showVIXFutures ? (
+              <VIXFuturesChart 
+                data={vixFuturesValues} 
+                volumeData={vixFuturesVolumeData} 
+              />
             ) : (
               <div className="bg-card rounded-lg border border-border p-6 flex flex-col items-center justify-center h-[300px]">
                 <p className="text-muted-foreground">Unable to load VIX futures data</p>
                 <button 
-                  onClick={() => window.location.reload()}
+                  onClick={handleRetryFuturesLoad}
                   className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
                 >
                   Retry

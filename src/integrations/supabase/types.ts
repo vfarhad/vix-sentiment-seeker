@@ -9,6 +9,27 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      VIX_FUTURES_HIST_DATA: {
+        Row: {
+          DATE: string
+          id: number
+          "VOLATILITY INDEX OI": number | null
+          "VOLATILITY INDEX VOLUME": number | null
+        }
+        Insert: {
+          DATE: string
+          id?: number
+          "VOLATILITY INDEX OI"?: number | null
+          "VOLATILITY INDEX VOLUME"?: number | null
+        }
+        Update: {
+          DATE?: string
+          id?: number
+          "VOLATILITY INDEX OI"?: number | null
+          "VOLATILITY INDEX VOLUME"?: number | null
+        }
+        Relationships: []
+      }
       VIX_HIST_DATA: {
         Row: {
           CLOSE: number | null

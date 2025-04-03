@@ -11,19 +11,24 @@ import {
   Tooltip, 
   ResponsiveContainer, 
   ReferenceLine,
-  Legend 
+  Legend,
+  ComposedChart,
+  Area
 } from 'recharts';
 
 interface VIXFuturesData {
   month: string;
   value: number;
+  volume?: number;
+  openInterest?: number;
 }
 
 interface VIXFuturesChartProps {
   data: VIXFuturesData[];
+  volumeData?: {date: string, volume: number, openInterest: number}[];
 }
 
-const VIXFuturesChart: React.FC<VIXFuturesChartProps> = ({ data }) => {
+const VIXFuturesChart: React.FC<VIXFuturesChartProps> = ({ data, volumeData }) => {
   // Calculate the average of all futures values
   const averageFuture = data.reduce((sum, item) => sum + item.value, 0) / data.length;
   
@@ -98,6 +103,30 @@ const VIXFuturesChart: React.FC<VIXFuturesChartProps> = ({ data }) => {
               {payload[0].payload.contango ? 'Contango' : 'Backwardation'}
             </span>
           </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // Volume data tooltip
+  const VolumeTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length > 0) {
+      return (
+        <div className="bg-card p-3 border border-border rounded shadow-md">
+          <p className="text-sm font-medium">{label}</p>
+          {payload[0] && (
+            <p className="text-sm text-primary">
+              <span className="font-medium">Volume: </span> 
+              {payload[0].value.toLocaleString()}
+            </p>
+          )}
+          {payload[1] && (
+            <p className="text-sm text-secondary">
+              <span className="font-medium">Open Interest: </span> 
+              {payload[1].value.toLocaleString()}
+            </p>
+          )}
         </div>
       );
     }
@@ -180,6 +209,55 @@ const VIXFuturesChart: React.FC<VIXFuturesChartProps> = ({ data }) => {
           </div>
         </div>
       </div>
+
+      {volumeData && volumeData.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold mb-4">VIX Futures Volume & Open Interest</h2>
+          <div className="h-[250px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={volumeData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="#64748B"
+                  tickFormatter={(value) => {
+                    const date = new Date(value);
+                    return date.toLocaleDateString('default', { month: 'short', day: 'numeric' });
+                  }}
+                />
+                <YAxis 
+                  stroke="#64748B"
+                  yAxisId="left"
+                  label={{ value: 'Volume', angle: -90, position: 'insideLeft', fill: '#64748B', fontSize: 12 }}
+                />
+                <YAxis 
+                  stroke="#64748B"
+                  yAxisId="right"
+                  orientation="right"
+                  label={{ value: 'Open Interest', angle: 90, position: 'insideRight', fill: '#64748B', fontSize: 12 }}
+                />
+                <Tooltip content={<VolumeTooltip />} />
+                <Legend />
+                <Bar 
+                  yAxisId="left"
+                  dataKey="volume" 
+                  fill="#8884d8" 
+                  name="Volume"
+                  radius={[4, 4, 0, 0]}
+                />
+                <Area
+                  yAxisId="right"
+                  dataKey="openInterest"
+                  type="monotone"
+                  fill="#82ca9d"
+                  stroke="#82ca9d"
+                  name="Open Interest"
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

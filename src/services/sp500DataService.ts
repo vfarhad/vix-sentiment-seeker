@@ -1,4 +1,3 @@
-
 import { supabase } from '@/lib/supabase';
 import { toast } from "sonner";
 import { scrapeSP500Historical, SP500HistoricalDataPoint } from './scrapers/sp500Scraper';
@@ -113,6 +112,106 @@ export const fetchSP500Data = async (): Promise<SP500HistoricalDataPoint[]> => {
   } catch (error) {
     console.error('Error fetching SP500 data:', error);
     toast.error('Failed to load S&P 500 historical data');
+    return [];
+  }
+};
+
+// New function to fetch VIX futures historical data
+export const getVIXFuturesHistData = async (): Promise<{date: string, volume: number, openInterest: number}[]> => {
+  try {
+    // Get the most recent data points, limited to the last 30 days
+    const { data, error } = await supabase
+      .from('VIX_FUTURES_HIST_DATA')
+      .select('*')
+      .order('DATE', { ascending: false })
+      .limit(30);
+    
+    if (error) {
+      console.error('Error fetching VIX futures historical data:', error);
+      toast.error('Failed to load VIX futures historical data');
+      return [];
+    }
+    
+    if (!data || data.length === 0) {
+      console.log('No VIX futures historical data found in database');
+      return [];
+    }
+    
+    // Map database fields to our expected format
+    return data.map(item => ({
+      date: item.DATE,
+      volume: item['VOLATILITY INDEX VOLUME'] || 0,
+      openInterest: item['VOLATILITY INDEX OI'] || 0
+    })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  } catch (error) {
+    console.error('Error in getVIXFuturesHistData:', error);
+    toast.error('Failed to load VIX futures historical data');
+    return [];
+  }
+};
+
+// Function to calculate VIX term structure from historical data
+export const calculateVIXTermStructure = async (): Promise<{month: string, value: number}[]> => {
+  try {
+    const histData = await getVIXFuturesHistData();
+    
+    if (!histData || histData.length === 0) {
+      console.log('No VIX futures historical data available to calculate term structure');
+      return [];
+    }
+    
+    // Group data by month
+    const monthlyData: Record<string, number[]> = {};
+    
+    histData.forEach(item => {
+      const date = new Date(item.date);
+      const monthKey = date.toLocaleString('default', { month: 'short' });
+      
+      if (!monthlyData[monthKey]) {
+        monthlyData[monthKey] = [];
+      }
+      
+      // Use open interest as the value for term structure
+      if (item.openInterest) {
+        monthlyData[monthKey].push(item.openInterest);
+      }
+    });
+    
+    // Calculate average for each month
+    const termStructure = Object.entries(monthlyData).map(([month, values]) => {
+      const avg = values.length > 0 
+        ? values.reduce((sum, val) => sum + val, 0) / values.length 
+        : 0;
+      
+      return {
+        month,
+        value: parseFloat(avg.toFixed(2))
+      };
+    });
+    
+    // Sort months chronologically
+    const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    termStructure.sort((a, b) => {
+      return monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month);
+    });
+    
+    // Make sure we have the current month as the first item
+    const currentMonth = new Date().toLocaleString('default', { month: 'short' });
+    if (!termStructure.some(item => item.month === 'Current')) {
+      // If we have the current month in our data, copy it as "Current"
+      const currentMonthData = termStructure.find(item => item.month === currentMonth);
+      
+      if (currentMonthData) {
+        termStructure.unshift({
+          month: 'Current',
+          value: currentMonthData.value
+        });
+      }
+    }
+    
+    return termStructure;
+  } catch (error) {
+    console.error('Error calculating VIX term structure:', error);
     return [];
   }
 };
