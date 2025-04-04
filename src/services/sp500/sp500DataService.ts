@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { TIINGO_API_URL, TIINGO_API_KEY } from '@/config/apiConfig';
 
 export interface SP500DataPoint {
   DATE: string;
@@ -69,6 +70,61 @@ export const testSP500DataTable = async (): Promise<{ success: boolean; data: SP
   }
 };
 
+export const fetchTiingoSP500Data = async (ticker: string = 'SPY', startDate?: string, endDate?: string): Promise<SP500DataPoint[]> => {
+  try {
+    console.log('Fetching S&P 500 historical data from Tiingo API');
+    
+    // Set default dates if not provided
+    const today = new Date();
+    const end = endDate || today.toISOString().split('T')[0];
+    
+    // Default to 1 year of data if no start date provided
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(today.getFullYear() - 1);
+    const start = startDate || oneYearAgo.toISOString().split('T')[0];
+    
+    const url = `${TIINGO_API_URL}/tiingo/daily/${ticker}/prices?startDate=${start}&endDate=${end}&format=json&token=${TIINGO_API_KEY}`;
+    
+    console.log(`Fetching Tiingo data from ${start} to ${end} for ${ticker}`);
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Tiingo API request failed with status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    console.log(`Fetched ${data.length} data points from Tiingo`);
+    
+    // Transform the data to match our SP500DataPoint format
+    const transformedData: SP500DataPoint[] = data.map((item: any) => ({
+      DATE: item.date.split('T')[0],  // Format ISO date to YYYY-MM-DD
+      CLOSE: item.close,
+      OPEN: item.open,
+      HIGH: item.high,
+      LOW: item.low
+    }));
+    
+    // Sort by date descending (newest first)
+    transformedData.sort((a, b) => new Date(b.DATE).getTime() - new Date(a.DATE).getTime());
+    
+    console.log('First data point:', transformedData[0]);
+    console.log('Last data point:', transformedData[transformedData.length - 1]);
+    
+    toast.success(`Loaded ${transformedData.length} S&P 500 data points from Tiingo`);
+    
+    return transformedData;
+  } catch (error) {
+    console.error('Error fetching data from Tiingo API:', error);
+    toast.error('Failed to fetch S&P 500 data from Tiingo');
+    
+    // Fall back to Supabase data if Tiingo fails
+    console.log('Falling back to Supabase data...');
+    return fetchSP500Data();
+  }
+};
+
 export const fetchSP500Data = async (): Promise<SP500DataPoint[]> => {
   try {
     console.log('Fetching S&P 500 historical data from Supabase');
@@ -121,5 +177,25 @@ export const fetchSP500Data = async (): Promise<SP500DataPoint[]> => {
     console.error('Unexpected error fetching S&P 500 data:', error);
     toast.error('Error loading S&P 500 data');
     return [];
+  }
+};
+
+export const getSP500Data = async (preferSource: 'tiingo' | 'supabase' = 'tiingo'): Promise<SP500DataPoint[]> => {
+  if (preferSource === 'tiingo') {
+    try {
+      const tiingoData = await fetchTiingoSP500Data();
+      if (tiingoData && tiingoData.length > 0) {
+        return tiingoData;
+      }
+      // Fall back to Supabase if Tiingo returns empty data
+      console.log('Tiingo returned empty data, falling back to Supabase');
+      return await fetchSP500Data();
+    } catch (error) {
+      console.error('Error with Tiingo data, falling back to Supabase:', error);
+      return await fetchSP500Data();
+    }
+  } else {
+    // Just use Supabase directly if preferred
+    return await fetchSP500Data();
   }
 };

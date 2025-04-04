@@ -6,11 +6,14 @@ import {
   calculateVIXTermStructure, 
   getLatestVIXTermStructure, 
   calculateContangoMetrics,
-  fetchSP500Data
+  fetchSP500Data,
+  getSP500Data,
+  fetchTiingoSP500Data
 } from './sp500/index';
 
 // Import types with proper syntax for isolatedModules
 import type { VIXTermStructurePoint } from './sp500/types';
+import type { SP500DataPoint } from './sp500/sp500DataService';
 
 // Re-export everything to maintain backward compatibility
 export { 
@@ -18,8 +21,10 @@ export {
   calculateVIXTermStructure, 
   getLatestVIXTermStructure, 
   calculateContangoMetrics,
-  fetchSP500Data
+  fetchSP500Data,
+  getSP500Data,
+  fetchTiingoSP500Data
 };
 
 // Re-export types with proper syntax
-export type { VIXTermStructurePoint };
+export type { VIXTermStructurePoint, SP500DataPoint };

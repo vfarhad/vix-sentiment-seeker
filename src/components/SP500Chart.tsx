@@ -11,9 +11,10 @@ import { AlertCircle } from 'lucide-react';
 
 interface SP500ChartProps {
   data: SP500DataPoint[];
+  dataSource?: string;
 }
 
-const SP500Chart: React.FC<SP500ChartProps> = ({ data }) => {
+const SP500Chart: React.FC<SP500ChartProps> = ({ data, dataSource = "Database" }) => {
   console.log('SP500Chart received data:', data); // Debug log to check data
   
   // Format data for the chart
@@ -131,6 +132,7 @@ const SP500Chart: React.FC<SP500ChartProps> = ({ data }) => {
             S&P 500 Historical Data
             <TrendIndicator trend={trend} />
           </CardTitle>
+          <span className="text-sm text-muted-foreground">Source: {dataSource}</span>
         </div>
       </CardHeader>
       <CardContent>
